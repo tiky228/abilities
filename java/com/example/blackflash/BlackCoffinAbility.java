@@ -32,7 +32,7 @@ public class BlackCoffinAbility {
 
     private static final double EFFECT_RADIUS = 5.0;
     private static final int COOLDOWN_SECONDS = 30;
-    private static final double DAMAGE_AMOUNT = 40.0;
+    private static final double DAMAGE_AMOUNT = 20.0;
     private static final double COFFIN_HALF_SIZE = 5.0; // 10x10 square
     private static final int COFFIN_HEIGHT = 12;
     private static final int CONSTRUCTION_INTERVAL_TICKS = 2;
@@ -151,9 +151,11 @@ public class BlackCoffinAbility {
 
     private void playInitialAura(Player caster) {
         Location loc = caster.getLocation().add(0, 1, 0);
-        caster.getWorld().spawnParticle(Particle.SPELL_WITCH, loc, 80, 1.2, 0.8, 1.2, 0.05);
-        caster.getWorld().spawnParticle(Particle.REVERSE_PORTAL, loc, 40, 1.2, 0.8, 1.2, 0.02);
-        caster.playSound(loc, Sound.ENTITY_ILLUSIONER_CAST_SPELL, 1.4f, 0.6f);
+        caster.getWorld().spawnParticle(Particle.SPELL_WITCH, loc, 150, 1.6, 1.0, 1.6, 0.05);
+        caster.getWorld().spawnParticle(Particle.REVERSE_PORTAL, loc, 120, 1.6, 1.0, 1.6, 0.03);
+        caster.getWorld().spawnParticle(Particle.PORTAL, loc, 100, 1.6, 1.0, 1.6, 0.2);
+        caster.playSound(loc, Sound.ENTITY_EVOKER_PREPARE_ATTACK, 1.4f, 0.5f);
+        caster.playSound(loc, Sound.ENTITY_ILLUSIONER_CAST_SPELL, 0.8f, 0.7f);
     }
 
     private void startConstruction(Player caster, List<Player> targets) {
@@ -204,29 +206,35 @@ public class BlackCoffinAbility {
 
     private void spawnLayer(World world, Location center, double y, Particle.DustOptions purple,
             Particle.DustOptions dark) {
-        double step = 0.3;
+        double step = 0.25;
         double radius = COFFIN_HALF_SIZE;
         for (double x = -radius; x <= radius; x += step) {
             Location north = new Location(world, center.getX() + x, y, center.getZ() - radius);
             Location south = new Location(world, center.getX() + x, y, center.getZ() + radius);
-            world.spawnParticle(Particle.REDSTONE, north, 3, 0, 0, 0, 0, purple);
-            world.spawnParticle(Particle.REDSTONE, south, 3, 0, 0, 0, 0, dark);
-            world.spawnParticle(Particle.ASH, north, 1, 0, 0, 0, 0.01);
-            world.spawnParticle(Particle.ASH, south, 1, 0, 0, 0, 0.01);
+            world.spawnParticle(Particle.REDSTONE, north, 6, 0, 0, 0, 0, purple);
+            world.spawnParticle(Particle.REDSTONE, south, 6, 0, 0, 0, 0, dark);
+            world.spawnParticle(Particle.ASH, north, 3, 0, 0, 0, 0.02);
+            world.spawnParticle(Particle.ASH, south, 3, 0, 0, 0, 0.02);
+            world.spawnParticle(Particle.SPELL_WITCH, north, 2, 0, 0, 0, 0.01);
+            world.spawnParticle(Particle.SPELL_WITCH, south, 2, 0, 0, 0, 0.01);
         }
         for (double z = -radius; z <= radius; z += step) {
             Location west = new Location(world, center.getX() - radius, y, center.getZ() + z);
             Location east = new Location(world, center.getX() + radius, y, center.getZ() + z);
-            world.spawnParticle(Particle.REDSTONE, west, 3, 0, 0, 0, 0, dark);
-            world.spawnParticle(Particle.REDSTONE, east, 3, 0, 0, 0, 0, purple);
-            world.spawnParticle(Particle.SMOKE_LARGE, west, 2, 0, 0, 0, 0.01);
-            world.spawnParticle(Particle.SMOKE_LARGE, east, 2, 0, 0, 0, 0.01);
+            world.spawnParticle(Particle.REDSTONE, west, 6, 0, 0, 0, 0, dark);
+            world.spawnParticle(Particle.REDSTONE, east, 6, 0, 0, 0, 0, purple);
+            world.spawnParticle(Particle.SMOKE_LARGE, west, 4, 0, 0, 0, 0.02);
+            world.spawnParticle(Particle.SMOKE_LARGE, east, 4, 0, 0, 0, 0.02);
+            world.spawnParticle(Particle.SPELL_WITCH, west, 2, 0, 0, 0, 0.01);
+            world.spawnParticle(Particle.SPELL_WITCH, east, 2, 0, 0, 0, 0.01);
         }
 
-        world.spawnParticle(Particle.SMOKE_LARGE, center.clone().add(0, y - center.getY(), 0), 40, radius, 0.1,
-                radius, 0.02);
-        world.spawnParticle(Particle.REVERSE_PORTAL, center.clone().add(0, y - center.getY(), 0), 20, radius * 0.1,
-                0.1, radius * 0.1, 0.01);
+        world.spawnParticle(Particle.SMOKE_LARGE, center.clone().add(0, y - center.getY(), 0), 60, radius, 0.1,
+                radius, 0.04);
+        world.spawnParticle(Particle.ASH, center.clone().add(0, y - center.getY(), 0), 30, radius, 0.1, radius,
+                0.02);
+        world.spawnParticle(Particle.REVERSE_PORTAL, center.clone().add(0, y - center.getY(), 0), 40,
+                radius * 0.1, 0.1, radius * 0.1, 0.02);
     }
 
     private void shatter(Player caster, Location center, List<Player> targets) {
@@ -236,9 +244,10 @@ public class BlackCoffinAbility {
         world.playSound(center, Sound.ENTITY_WITHER_DEATH, 0.8f, 0.7f);
 
         world.spawnParticle(Particle.EXPLOSION_HUGE, center, 1);
-        world.spawnParticle(Particle.ASH, center, 200, COFFIN_HALF_SIZE, 1.4, COFFIN_HALF_SIZE, 0.02);
-        world.spawnParticle(Particle.SPELL_WITCH, center, 200, COFFIN_HALF_SIZE, 1.4, COFFIN_HALF_SIZE, 0.02);
-        world.spawnParticle(Particle.SMOKE_LARGE, center, 250, COFFIN_HALF_SIZE, 1.4, COFFIN_HALF_SIZE, 0.02);
+        world.spawnParticle(Particle.SMOKE_LARGE, center, 350, COFFIN_HALF_SIZE, 1.6, COFFIN_HALF_SIZE, 0.05);
+        world.spawnParticle(Particle.ASH, center, 300, COFFIN_HALF_SIZE, 1.6, COFFIN_HALF_SIZE, 0.05);
+        world.spawnParticle(Particle.SPELL_WITCH, center, 300, COFFIN_HALF_SIZE, 1.6, COFFIN_HALF_SIZE, 0.08);
+        world.spawnParticle(Particle.REVERSE_PORTAL, center, 220, COFFIN_HALF_SIZE, 1.6, COFFIN_HALF_SIZE, 0.05);
 
         BoundingBox box = BoundingBox.of(
                 new Location(world, center.getX() - COFFIN_HALF_SIZE, center.getY(), center.getZ() - COFFIN_HALF_SIZE),
@@ -256,7 +265,11 @@ public class BlackCoffinAbility {
                 continue;
             }
             living.damage(DAMAGE_AMOUNT, caster);
-            living.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 160, 0, false, true, true));
+            PotionEffectType darkness = PotionEffectType.DARKNESS;
+            if (darkness != null) {
+                living.addPotionEffect(new PotionEffect(darkness, 180, 0, false, true, true));
+            }
+            living.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 180, 0, false, true, true));
             living.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 600, 0, false, true, true));
         }
 

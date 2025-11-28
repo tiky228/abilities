@@ -117,9 +117,10 @@ public class ReverseCursedTechniqueAbility {
                 }
 
                 Location loc = player.getLocation().add(0, 1, 0);
-                player.getWorld().spawnParticle(Particle.REDSTONE, loc, 50, 0.8, 0.6, 0.8, 0.02,
-                        new Particle.DustOptions(Color.fromRGB(80, 180, 255), 1.2f));
-                player.getWorld().spawnParticle(Particle.SPELL_INSTANT, loc, 30, 0.5, 0.4, 0.5, 0.02);
+                player.getWorld().spawnParticle(Particle.REDSTONE, loc, 90, 0.9, 0.7, 0.9, 0.03,
+                        new Particle.DustOptions(Color.fromRGB(80, 180, 255), 1.4f));
+                player.getWorld().spawnParticle(Particle.SPELL_INSTANT, loc, 45, 0.6, 0.5, 0.6, 0.03);
+                player.getWorld().spawnParticle(Particle.END_ROD, loc, 12, 0.35, 0.4, 0.35, 0.01);
             }
         }.runTaskTimer(plugin, 0L, PARTICLE_INTERVAL_TICKS);
     }
