@@ -23,6 +23,7 @@ public class BankaiResetDebugCommand implements CommandExecutor {
             return true;
         }
         bankaiAbility.reset(player);
+        player.sendMessage("Your Bankai state has been reset.");
         return true;
     }
 }
