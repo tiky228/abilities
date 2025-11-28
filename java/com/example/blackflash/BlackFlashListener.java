@@ -1,6 +1,5 @@
 package com.example.blackflash;
 
-import org.bukkit.Material;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -24,11 +23,9 @@ public class BlackFlashListener implements Listener {
             return;
         }
 
-        if (event.getItem() == null || event.getItem().getType() != Material.GOLDEN_AXE) {
-            return;
+        if (event.getItem() != null) {
+            ability.handleActivation(event.getPlayer());
         }
-
-        ability.handleActivation(event.getPlayer());
     }
 
     @EventHandler
@@ -41,7 +38,7 @@ public class BlackFlashListener implements Listener {
             return;
         }
 
-        if (player.getInventory().getItemInMainHand().getType() != Material.GOLDEN_AXE) {
+        if (!ability.isBlackFlashAxe(player.getInventory().getItemInMainHand())) {
             return;
         }
 
