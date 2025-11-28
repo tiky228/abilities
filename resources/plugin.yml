@@ -3,6 +3,9 @@ main: com.example.blackflash.BlackFlashPlugin
 version: 1.0
 api-version: 1.20
 description: Full Ichigo Bankai and Getsuga Tenshou demo with additional legacy abilities.
+main: com.example.bankai.BankaiPlugin
+version: 1.0.0
+api-version: "1.20"
 commands:
   blackflash:
     description: Give yourself the Black Flash Axe.
@@ -15,7 +18,9 @@ commands:
     usage: /givehado90
   givebankai:
     description: Receive the Bankai transformation weapon.
+    description: Give the Bankai activation item.
     usage: /givebankai
   bankaireset:
     description: Reset Bankai state immediately.
+    description: Reset Bankai for the executing player.
     usage: /bankaireset
