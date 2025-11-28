@@ -7,6 +7,9 @@ commands:
   blackflash:
     description: Give yourself the Black Flash Axe.
     usage: /blackflash
-  hado90:
-    description: Cast Hado #90: Black Coffin.
-    usage: /hado90
+  giverct:
+    description: Receive the Reverse Cursed Technique focus item.
+    usage: /giverct
+  givehado90:
+    description: Receive the catalyst for Hado #90: Black Coffin.
+    usage: /givehado90

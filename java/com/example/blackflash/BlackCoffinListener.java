@@ -36,13 +36,21 @@ public class BlackCoffinListener implements Listener {
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
-        if (!ability.isFrozen(player.getUniqueId())) {
+        Action action = event.getAction();
+
+        if (ability.isFrozen(player.getUniqueId())) {
+            if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK || action == Action.RIGHT_CLICK_AIR
+                    || action == Action.RIGHT_CLICK_BLOCK) {
+                event.setCancelled(true);
+            }
             return;
         }
-        Action action = event.getAction();
-        if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK || action == Action.RIGHT_CLICK_AIR
-                || action == Action.RIGHT_CLICK_BLOCK) {
-            event.setCancelled(true);
+
+        if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
+            if (ability.isAbilityItem(player.getInventory().getItemInMainHand())) {
+                ability.tryCast(player);
+                event.setCancelled(true);
+            }
         }
     }
 
