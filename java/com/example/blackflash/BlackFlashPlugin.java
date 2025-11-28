@@ -1,90 +1,66 @@
 package com.example.blackflash;
 
+import com.example.blackflash.commands.BankaiCommand;
+import com.example.blackflash.commands.BankaiResetCommand;
+import com.example.blackflash.commands.BlackFlashCommand;
+import com.example.blackflash.commands.HadoCommand;
+import com.example.blackflash.commands.ReverseCursedTechniqueCommand;
+import com.example.blackflash.listener.AbilityListener;
+import com.example.blackflash.util.AbilityItems;
 import org.bukkit.NamespacedKey;
-import org.bukkit.command.PluginCommand;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
+/**
+ * Main entrypoint for the BankaiPlugin. Handles command registration and
+ * initialises shared NamespacedKey values for marking the custom items.
+ */
 public class BlackFlashPlugin extends JavaPlugin {
-
-    private BlackFlashAbility blackFlashAbility;
-    private ReverseCursedTechniqueAbility reverseCursedTechniqueAbility;
-    private BlackCoffinAbility blackCoffinAbility;
-    private BankaiAbility bankaiAbility;
-    private NamespacedKey blackFlashAxeKey;
-    private NamespacedKey reverseTechniqueItemKey;
-    private NamespacedKey hadoItemKey;
-    private NamespacedKey bankaiItemKey;
+    private NamespacedKey blackFlashKey;
+    private NamespacedKey reverseCursedTechniqueKey;
+    private NamespacedKey hadoNinetyKey;
+    private NamespacedKey bankaiKey;
 
     @Override
     public void onEnable() {
-        this.blackFlashAxeKey = new NamespacedKey(this, "blackflash_axe");
-        this.reverseTechniqueItemKey = new NamespacedKey(this, "rct_item");
-        this.hadoItemKey = new NamespacedKey(this, "hado_item");
-        this.bankaiItemKey = new NamespacedKey(this, "bankai_item");
+        this.blackFlashKey = new NamespacedKey(this, "black_flash_item");
+        this.reverseCursedTechniqueKey = new NamespacedKey(this, "reverse_cursed_technique_item");
+        this.hadoNinetyKey = new NamespacedKey(this, "hado_ninety_item");
+        this.bankaiKey = new NamespacedKey(this, "bankai_item");
 
-        this.blackFlashAbility = new BlackFlashAbility(this, blackFlashAxeKey);
-        this.reverseCursedTechniqueAbility = new ReverseCursedTechniqueAbility(this, reverseTechniqueItemKey);
-        this.blackCoffinAbility = new BlackCoffinAbility(this, hadoItemKey);
-        this.bankaiAbility = new BankaiAbility(this, bankaiItemKey);
-        getServer().getPluginManager().registerEvents(new BlackFlashListener(blackFlashAbility), this);
-        getServer().getPluginManager().registerEvents(new ReverseCursedTechniqueListener(reverseCursedTechniqueAbility), this);
-        getServer().getPluginManager().registerEvents(new BlackCoffinListener(blackCoffinAbility), this);
-        getServer().getPluginManager().registerEvents(new BankaiListener(bankaiAbility), this);
-        registerCommands();
-        getLogger().info("Black Flash and Reverse Cursed Technique abilities loaded.");
+        AbilityItems abilityItems = new AbilityItems(this);
+        AbilityListener listener = new AbilityListener(this, abilityItems);
+
+        // Register command executors that hand out the ability items.
+        getCommand("blackflash").setExecutor(new BlackFlashCommand(abilityItems));
+        getCommand("giverct").setExecutor(new ReverseCursedTechniqueCommand(abilityItems));
+        getCommand("givehado90").setExecutor(new HadoCommand(abilityItems));
+        getCommand("givebankai").setExecutor(new BankaiCommand(abilityItems));
+        getCommand("bankaireset").setExecutor(new BankaiResetCommand(listener));
+
+        // Register the shared listener handling interactions with the custom items.
+        getServer().getPluginManager().registerEvents(listener, this);
+
+        getLogger().info("BankaiPlugin enabled. Commands registered and listeners active.");
     }
 
     @Override
     public void onDisable() {
-        if (reverseCursedTechniqueAbility != null) {
-            for (Player player : getServer().getOnlinePlayers()) {
-                reverseCursedTechniqueAbility.clearState(player);
-            }
-        }
-        if (blackCoffinAbility != null) {
-            blackCoffinAbility.clearAll();
-        }
-        if (bankaiAbility != null) {
-            bankaiAbility.clearAll();
-        }
-        getLogger().info("Black Flash abilities disabled.");
+        getLogger().info("BankaiPlugin disabled. See you next time.");
     }
 
-    private void registerCommands() {
-        PluginCommand command = getCommand("blackflash");
-        if (command != null) {
-            command.setExecutor(new BlackFlashCommand(blackFlashAbility));
-        } else {
-            getLogger().warning("Failed to register /blackflash command.");
-        }
+    public NamespacedKey getBlackFlashKey() {
+        return blackFlashKey;
+    }
 
-        PluginCommand rctCommand = getCommand("giverct");
-        if (rctCommand != null) {
-            rctCommand.setExecutor(new ReverseCursedTechniqueCommand(reverseCursedTechniqueAbility));
-        } else {
-            getLogger().warning("Failed to register /giverct command.");
-        }
+    public NamespacedKey getReverseCursedTechniqueKey() {
+        return reverseCursedTechniqueKey;
+    }
 
-        PluginCommand hadoCommand = getCommand("givehado90");
-        if (hadoCommand != null) {
-            hadoCommand.setExecutor(new GiveHado90Command(blackCoffinAbility));
-        } else {
-            getLogger().warning("Failed to register /givehado90 command.");
-        }
+    public NamespacedKey getHadoNinetyKey() {
+        return hadoNinetyKey;
+    }
 
-        PluginCommand bankaiCommand = getCommand("givebankai");
-        if (bankaiCommand != null) {
-            bankaiCommand.setExecutor(new GiveBankaiCommand(bankaiAbility));
-        } else {
-            getLogger().warning("Failed to register /givebankai command.");
-        }
-
-        PluginCommand bankaiResetCommand = getCommand("bankaireset");
-        if (bankaiResetCommand != null) {
-            bankaiResetCommand.setExecutor(new BankaiResetCommand(bankaiAbility));
-        } else {
-            getLogger().warning("Failed to register /bankaireset command.");
-        }
+    public NamespacedKey getBankaiKey() {
+        return bankaiKey;
     }
 }
