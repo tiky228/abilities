@@ -91,7 +91,6 @@ public class BlackFlashAbility {
     public void handleActivation(Player player) {
         UUID id = player.getUniqueId();
         if (!isBlackFlashAxe(player.getInventory().getItemInMainHand())) {
-            player.sendMessage(ChatColor.RED + "You need the Black Flash Axe to use this ability.");
             return;
         }
 
