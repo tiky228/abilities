@@ -1,6 +1,7 @@
 package com.example.blackflash;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -29,7 +30,12 @@ public class BankaiAbility {
 
     private static final int MODE_DURATION_SECONDS = 90;
     private static final int EXTRA_HEARTS = 10;
-    private static final String BASE_LORE = ChatColor.GRAY + "Unleash Bankai Ichigo.";
+    private static final String BASE_LORE = ChatColor.GRAY + "Unleash Bankai.";
+    private static final int TITLE_RADIUS = 50;
+    private static final int BEAM_DURATION_TICKS = 40;
+    private static final int BEAM_FREQUENCY_TICKS = 2;
+    private static final int AURA_RADIUS = 10;
+    private static final double BEAM_RADIUS = 1.0;
 
     private final JavaPlugin plugin;
     private final NamespacedKey bankaiItemKey;
@@ -44,8 +50,8 @@ public class BankaiAbility {
         ItemStack item = new ItemStack(org.bukkit.Material.NETHERITE_SWORD);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ChatColor.DARK_GRAY + "Tensa Zangetsu");
-            meta.setLore(java.util.List.of(BASE_LORE));
+            meta.setDisplayName(ChatColor.AQUA + "Tensa Zangetsu");
+            meta.setLore(List.of(BASE_LORE));
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
             PersistentDataContainer container = meta.getPersistentDataContainer();
             container.set(bankaiItemKey, PersistentDataType.BYTE, (byte) 1);
@@ -92,7 +98,7 @@ public class BankaiAbility {
 
     private void startAuraPhase(Player player, BankaiState state) {
         spawnAura(player);
-        Bukkit.broadcastMessage(ChatColor.AQUA + "I had enought...");
+        sendTitleNearby(player, ChatColor.AQUA + "I had enought...", "", 10, 40, 20);
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ILLUSIONER_CAST_SPELL, 1.2f, 0.7f);
     }
 
@@ -100,14 +106,14 @@ public class BankaiAbility {
         if (!isActive(player)) {
             return;
         }
-        Bukkit.broadcastMessage(ChatColor.AQUA.toString() + ChatColor.BOLD + "BANKAI!");
-        BukkitTask beamTask = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> spawnBeam(player), 0L, 2L);
+        sendTitleNearby(player, ChatColor.AQUA.toString() + ChatColor.BOLD + "BANKAI!", "", 2, 30, 10);
+        BukkitTask beamTask = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> spawnBeam(player), 0L, BEAM_FREQUENCY_TICKS);
         state.addTask(beamTask);
 
         BukkitTask activateTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             beamTask.cancel();
             activateBankai(player, state);
-        }, 40L);
+        }, BEAM_DURATION_TICKS);
         state.addTask(activateTask);
     }
 
@@ -115,7 +121,8 @@ public class BankaiAbility {
         if (!isActive(player)) {
             return;
         }
-        Bukkit.broadcastMessage(ChatColor.RED + "Tensa Zangetsu.");
+        state.setStartTime(System.currentTimeMillis());
+        sendTitleNearby(player, ChatColor.RED + "Tensa Zangetsu.", "", 10, 40, 20);
 
         AttributeInstance maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
         if (maxHealth != null) {
@@ -160,9 +167,9 @@ public class BankaiAbility {
                 continue;
             }
             if (remainingSeconds < 0) {
-                meta.setLore(java.util.List.of(BASE_LORE));
+                meta.setLore(List.of(BASE_LORE));
             } else {
-                meta.setLore(java.util.List.of(BASE_LORE, ChatColor.RED + "Time left: " + remainingSeconds + "s"));
+                meta.setLore(List.of(BASE_LORE, ChatColor.RED + "Time left: " + remainingSeconds + "s"));
             }
             stack.setItemMeta(meta);
             contents[i] = stack;
@@ -171,35 +178,78 @@ public class BankaiAbility {
     }
 
     private void spawnAura(Player player) {
-        for (int i = 0; i < 150; i++) {
-            double radius = 10 * ThreadLocalRandom.current().nextDouble();
+        Particle.DustOptions deepBlue = new Particle.DustOptions(Color.fromRGB(35, 105, 255), 1.6f);
+        Particle.DustOptions softBlue = new Particle.DustOptions(Color.fromRGB(180, 220, 255), 1.2f);
+        for (int i = 0; i < 220; i++) {
+            double radius = ThreadLocalRandom.current().nextDouble(0, AURA_RADIUS);
             double angle = ThreadLocalRandom.current().nextDouble(0, Math.PI * 2);
             double offsetX = Math.cos(angle) * radius;
             double offsetZ = Math.sin(angle) * radius;
-            double offsetY = ThreadLocalRandom.current().nextDouble(0, 2.5);
-            player.getWorld().spawnParticle(Particle.SOUL, player.getLocation().add(offsetX, offsetY, offsetZ), 2, 0.2, 0.2, 0.2, 0);
-            player.getWorld().spawnParticle(Particle.REVERSE_PORTAL, player.getLocation().add(offsetX, offsetY, offsetZ), 1, 0.1, 0.1, 0.1, 0);
+            double offsetY = ThreadLocalRandom.current().nextDouble(0.1, 2.8);
+            player.getWorld().spawnParticle(Particle.REDSTONE, player.getLocation().add(offsetX, offsetY, offsetZ), 1, 0.0, 0.0, 0.0, 0.0, ThreadLocalRandom.current().nextBoolean() ? deepBlue : softBlue);
+            player.getWorld().spawnParticle(Particle.END_ROD, player.getLocation().add(offsetX * 0.5, offsetY, offsetZ * 0.5), 1, 0.05, 0.1, 0.05, 0.0);
+            player.getWorld().spawnParticle(Particle.CLOUD, player.getLocation().add(offsetX, offsetY, offsetZ), 1, 0.05, 0.05, 0.05, 0.0);
         }
     }
 
     private void spawnBeam(Player player) {
-        for (int i = 0; i < 40; i++) {
+        Particle.DustOptions beamBlue = new Particle.DustOptions(Color.fromRGB(75, 160, 255), 1.7f);
+        Particle.DustOptions cyanDust = new Particle.DustOptions(Color.fromRGB(80, 220, 255), 1.5f);
+        Particle.DustOptions whiteCore = new Particle.DustOptions(Color.fromRGB(240, 240, 255), 1.3f);
+        var world = player.getWorld();
+
+        for (int i = 0; i < 140; i++) {
             double angle = ThreadLocalRandom.current().nextDouble(0, Math.PI * 2);
-            double radius = ThreadLocalRandom.current().nextDouble(3, 8);
-            double height = ThreadLocalRandom.current().nextDouble(0.5, 3.5);
+            double radius = ThreadLocalRandom.current().nextDouble(0, BEAM_RADIUS);
+            double height = ThreadLocalRandom.current().nextDouble(0.0, 2.5);
             double x = player.getLocation().getX() + Math.cos(angle) * radius;
-            double y = player.getLocation().getY() + height;
+            double y = player.getLocation().getY() + 0.2 + height;
             double z = player.getLocation().getZ() + Math.sin(angle) * radius;
-            player.getWorld().spawnParticle(Particle.SPELL_WITCH, x, y, z, 8, 0.2, 0.4, 0.2, 0.02);
-            player.getWorld().spawnParticle(Particle.REVERSE_PORTAL, x, y, z, 6, 0.2, 0.4, 0.2, 0.02);
+            world.spawnParticle(Particle.REDSTONE, x, y, z, 1, 0, 0, 0, 0, beamBlue, true);
+            world.spawnParticle(Particle.REDSTONE, x, y, z, 1, 0, 0, 0, 0, cyanDust, true);
+            world.spawnParticle(Particle.REDSTONE, x, y, z, 0, 0, 0, 0, whiteCore, true);
+            world.spawnParticle(Particle.END_ROD, x, y, z, 1, 0.03, 0.15, 0.03, 0.0);
         }
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.6f, 1.2f);
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_WITHER_SPAWN, 0.4f, 1.0f);
+
+        for (int i = 0; i < 35; i++) {
+            double angle = ThreadLocalRandom.current().nextDouble(0, Math.PI * 2);
+            double startRadius = ThreadLocalRandom.current().nextDouble(AURA_RADIUS * 0.6, AURA_RADIUS);
+            double targetX = player.getLocation().getX();
+            double targetY = player.getLocation().getY() + 1.0;
+            double targetZ = player.getLocation().getZ();
+            for (int step = 0; step < 4; step++) {
+                double radius = startRadius - (startRadius * (step / 3.0));
+                double x = targetX + Math.cos(angle) * radius;
+                double y = targetY + ThreadLocalRandom.current().nextDouble(-0.2, 0.6);
+                double z = targetZ + Math.sin(angle) * radius;
+                world.spawnParticle(Particle.REDSTONE, x, y, z, 1, 0, 0, 0, 0, cyanDust, true);
+                world.spawnParticle(Particle.REDSTONE, x, y, z, 1, 0, 0, 0, 0, whiteCore, true);
+            }
+        }
+
+        world.playSound(player.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.7f, 1.25f);
+        world.playSound(player.getLocation(), Sound.ENTITY_WITHER_SPAWN, 0.6f, 1.05f);
+        world.playSound(player.getLocation(), Sound.ENTITY_ILLUSIONER_PREPARE_MIRROR, 0.6f, 0.9f);
     }
 
     private void spawnRedAura(Player player) {
+        double baseAngle = (player.getWorld().getGameTime() % 360) / 10.0;
         Particle.DustOptions redDust = new Particle.DustOptions(Color.fromRGB(220, 20, 60), 1.2f);
-        player.getWorld().spawnParticle(Particle.REDSTONE, player.getLocation().add(0, 1, 0), 12, 0.6, 0.8, 0.6, 0, redDust);
+        for (int i = 0; i < 16; i++) {
+            double angle = baseAngle + (Math.PI * 2 * i / 16);
+            double radius = 1.2 + 0.2 * Math.sin(baseAngle + i);
+            double x = player.getLocation().getX() + Math.cos(angle) * radius;
+            double z = player.getLocation().getZ() + Math.sin(angle) * radius;
+            double y = player.getLocation().getY() + 0.9 + 0.4 * Math.sin(baseAngle + angle);
+            player.getWorld().spawnParticle(Particle.REDSTONE, x, y, z, 1, 0, 0, 0, 0, redDust, true);
+        }
+    }
+
+    private void sendTitleNearby(Player source, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
+        double radiusSquared = TITLE_RADIUS * TITLE_RADIUS;
+        source.getWorld().getPlayers().stream()
+                .filter(target -> target.getLocation().distanceSquared(source.getLocation()) <= radiusSquared)
+                .forEach(target -> target.sendTitle(title, subtitle, fadeIn, stay, fadeOut));
     }
 
     public void resetBankai(Player player, String message) {
