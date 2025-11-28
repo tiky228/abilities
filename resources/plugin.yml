@@ -1,8 +1,8 @@
 name: BlackFlash
 main: com.example.blackflash.BlackFlashPlugin
-version: 1.1.0
+version: 1.2.0
 api-version: 1.20
-description: Demonstrates the Black Flash ability with a special golden axe.
+description: Demonstrates the Black Flash axe and the Reverse Cursed Technique healing channel.
 commands:
   blackflash:
     description: Give yourself the Black Flash Axe.
