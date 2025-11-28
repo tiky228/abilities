@@ -188,7 +188,7 @@ public class BankaiAbility {
             double offsetY = ThreadLocalRandom.current().nextDouble(0.1, 2.8);
             player.getWorld().spawnParticle(Particle.REDSTONE, player.getLocation().add(offsetX, offsetY, offsetZ), 1, 0.0, 0.0, 0.0, 0.0, ThreadLocalRandom.current().nextBoolean() ? deepBlue : softBlue);
             player.getWorld().spawnParticle(Particle.END_ROD, player.getLocation().add(offsetX * 0.5, offsetY, offsetZ * 0.5), 1, 0.05, 0.1, 0.05, 0.0);
-            player.getWorld().spawnParticle(Particle.CLOUD, player.getLocation().add(offsetX, offsetY, offsetZ), 1, 0.05, 0.05, 0.05, 0.0);
+            player.getWorld().spawnParticle(Particle.SNOWFLAKE, player.getLocation().add(offsetX, offsetY, offsetZ), 1, 0.05, 0.05, 0.05, 0.0);
         }
     }
 
@@ -220,7 +220,7 @@ public class BankaiAbility {
                 double x = targetX + Math.cos(angle) * radius;
                 double y = targetY + ThreadLocalRandom.current().nextDouble(-0.2, 0.6);
                 double z = targetZ + Math.sin(angle) * radius;
-                world.spawnParticle(Particle.CLOUD, x, y, z, 1, 0.03, 0.03, 0.03, 0.0);
+                world.spawnParticle(Particle.SNOWFLAKE, x, y, z, 1, 0.03, 0.03, 0.03, 0.0);
                 world.spawnParticle(Particle.REDSTONE, x, y, z, 1, 0, 0, 0, 0, whiteCore, true);
             }
         }
