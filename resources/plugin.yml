@@ -1,8 +1,8 @@
-name: BlackFlash
+name: BankaiPlugin
 main: com.example.blackflash.BlackFlashPlugin
-version: 1.3.0
+version: 1.0.0
 api-version: 1.20
-description: Demonstrates the Black Flash axe, Reverse Cursed Technique healing, and Hado #90: Black Coffin.
+description: Demonstrates Bankai Ichigo transformation with custom sequences alongside earlier abilities.
 commands:
   blackflash:
     description: Give yourself the Black Flash Axe.
@@ -13,3 +13,9 @@ commands:
   givehado90:
     description: Receive the catalyst for Hado #90: Black Coffin.
     usage: /givehado90
+  givebankai:
+    description: Receive the Bankai transformation weapon.
+    usage: /givebankai
+  bankaireset:
+    description: Reset Bankai state immediately.
+    usage: /bankaireset
