@@ -6,7 +6,6 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.inventory.ItemStack;
 
 public class BankaiListener implements Listener {
 
@@ -28,13 +27,10 @@ public class BankaiListener implements Listener {
             return;
         }
 
-        ItemStack item = event.getPlayer().getInventory().getItemInMainHand();
-        if (!ability.isBankaiItem(item)) {
-            return;
+        boolean handled = ability.handleInteract(event.getPlayer(), event.getPlayer().getInventory().getItemInMainHand(), hand);
+        if (handled) {
+            event.setCancelled(true);
         }
-
-        ability.tryActivate(event.getPlayer(), hand);
-        event.setCancelled(true);
     }
 
     @EventHandler
