@@ -21,7 +21,7 @@ public class BlackFlashPlugin extends JavaPlugin {
         this.blackFlashAxeKey = new NamespacedKey(this, "blackflash_axe");
         this.reverseTechniqueItemKey = new NamespacedKey(this, "rct_item");
         this.hadoItemKey = new NamespacedKey(this, "hado_item");
-        this.bankaiItemKey = new NamespacedKey(this, "bankai_item");
+        this.bankaiItemKey = new NamespacedKey("myplugin", "bankai_item");
 
         this.blackFlashAbility = new BlackFlashAbility(this, blackFlashAxeKey);
         this.reverseCursedTechniqueAbility = new ReverseCursedTechniqueAbility(this, reverseTechniqueItemKey);
