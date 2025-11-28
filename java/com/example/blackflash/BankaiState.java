@@ -8,7 +8,7 @@ import org.bukkit.scheduler.BukkitTask;
 public class BankaiState {
     private final UUID playerId;
     private final double originalMaxHealth;
-    private final long startTime;
+    private long startTime;
     private final List<BukkitTask> tasks = new ArrayList<>();
 
     public BankaiState(UUID playerId, double originalMaxHealth, long startTime) {
@@ -27,6 +27,10 @@ public class BankaiState {
 
     public long getStartTime() {
         return startTime;
+    }
+
+    public void setStartTime(long startTime) {
+        this.startTime = startTime;
     }
 
     public void addTask(BukkitTask task) {
