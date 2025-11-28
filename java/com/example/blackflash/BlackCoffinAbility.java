@@ -14,9 +14,12 @@ import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.BoundingBox;
 
 /**
  * Handles the logic for casting Hado #90: Black Coffin.
@@ -26,8 +29,10 @@ public class BlackCoffinAbility {
     private static final double EFFECT_RADIUS = 5.0;
     private static final int COOLDOWN_SECONDS = 30;
     private static final double DAMAGE_AMOUNT = 10.0;
-    private static final int CONSTRUCTION_LAYERS = 10;
+    private static final double COFFIN_HALF_SIZE = 2.5;
+    private static final int COFFIN_HEIGHT = 8;
     private static final int CONSTRUCTION_INTERVAL_TICKS = 4;
+    private static final int SHATTER_DELAY_TICKS = 10;
 
     private final BlackFlashPlugin plugin;
     private final CooldownManager cooldownManager = new CooldownManager();
@@ -130,22 +135,28 @@ public class BlackCoffinAbility {
         BukkitTask[] handle = new BukkitTask[1];
         BukkitRunnable runnable = new BukkitRunnable() {
             private int layer = 0;
+            private int holdTicks = 0;
 
             @Override
             public void run() {
-                if (layer >= CONSTRUCTION_LAYERS) {
-                    cancel();
-                    runningTasks.remove(handle[0]);
-                    shatter(caster, center, targets);
+                if (layer < COFFIN_HEIGHT) {
+                    spawnCoffinLayers(world, center, layer + 1, purpleDust, darkDust);
+                    if (layer % 2 == 0) {
+                        world.playSound(center, Sound.BLOCK_BEACON_AMBIENT, 0.6f, 0.5f);
+                    }
+                    layer++;
                     return;
                 }
 
-                double y = center.getY() + (layer * 0.4);
-                spawnBoxLayer(world, center, y, purpleDust, darkDust);
-                if (layer % 3 == 0) {
-                    world.playSound(center, Sound.BLOCK_BEACON_AMBIENT, 0.6f, 0.5f);
+                if (holdTicks < SHATTER_DELAY_TICKS) {
+                    spawnCoffinLayers(world, center, COFFIN_HEIGHT, purpleDust, darkDust);
+                    holdTicks += CONSTRUCTION_INTERVAL_TICKS;
+                    return;
                 }
-                layer++;
+
+                cancel();
+                runningTasks.remove(handle[0]);
+                shatter(caster, center, targets);
             }
         };
         BukkitTask task = runnable.runTaskTimer(plugin, 0L, CONSTRUCTION_INTERVAL_TICKS);
@@ -160,8 +171,8 @@ public class BlackCoffinAbility {
     }
 
     private void spawnBoxLayer(World world, Location center, double y, Particle.DustOptions purple, Particle.DustOptions dark) {
-        double radius = EFFECT_RADIUS;
-        double step = 0.6;
+        double radius = COFFIN_HALF_SIZE;
+        double step = 0.5;
         for (double x = -radius; x <= radius; x += step) {
             Location loc1 = new Location(world, center.getX() + x, y, center.getZ() - radius);
             Location loc2 = new Location(world, center.getX() + x, y, center.getZ() + radius);
@@ -174,27 +185,44 @@ public class BlackCoffinAbility {
             world.spawnParticle(Particle.REDSTONE, loc1, 2, 0, 0, 0, 0, purple);
             world.spawnParticle(Particle.REDSTONE, loc2, 2, 0, 0, 0, 0, dark);
         }
-        world.spawnParticle(Particle.SMOKE_LARGE, center.clone().add(0, y - center.getY(), 0), 12, radius, 0.2, radius, 0.02);
+        world.spawnParticle(Particle.SMOKE_LARGE, center.clone().add(0, y - center.getY(), 0), 14, radius, 0.1, radius, 0.02);
+        world.spawnParticle(Particle.PORTAL, center.clone().add(0, y - center.getY(), 0), 6, 0.2, 0.1, 0.2, 0.02);
+    }
+
+    private void spawnCoffinLayers(World world, Location center, int layers, Particle.DustOptions purple,
+            Particle.DustOptions dark) {
+        for (int i = 0; i < layers; i++) {
+            double y = center.getY() + i;
+            spawnBoxLayer(world, center, y, purple, dark);
+        }
     }
 
     private void shatter(Player caster, Location center, List<Player> targets) {
         World world = center.getWorld();
         world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 1.4f, 0.7f);
+        world.playSound(center, Sound.BLOCK_GLASS_BREAK, 1.0f, 0.9f);
         world.playSound(center, Sound.ENTITY_WITHER_DEATH, 0.7f, 0.8f);
-        world.spawnParticle(Particle.EXPLOSION_HUGE, center, 2, 0.2, 0.4, 0.2, 0.01);
-        world.spawnParticle(Particle.ASH, center, 80, 1.2, 1.0, 1.2, 0.02);
-        world.spawnParticle(Particle.SPELL_WITCH, center, 60, 1.2, 1.0, 1.2, 0.02);
+        world.spawnParticle(Particle.EXPLOSION_LARGE, center, 6, 0.6, 0.6, 0.6, 0.02);
+        world.spawnParticle(Particle.ASH, center, 120, COFFIN_HALF_SIZE, 1.2, COFFIN_HALF_SIZE, 0.02);
+        world.spawnParticle(Particle.SPELL_WITCH, center, 100, COFFIN_HALF_SIZE, 1.2, COFFIN_HALF_SIZE, 0.02);
 
-        for (Player target : targets) {
-            if (!target.isOnline()) {
+        BoundingBox box = BoundingBox.of(
+                new Location(world, center.getX() - COFFIN_HALF_SIZE, center.getY(), center.getZ() - COFFIN_HALF_SIZE),
+                new Location(world, center.getX() + COFFIN_HALF_SIZE, center.getY() + COFFIN_HEIGHT,
+                        center.getZ() + COFFIN_HALF_SIZE));
+        for (Entity entity : world.getNearbyEntities(box)) {
+            if (!(entity instanceof LivingEntity living)) {
                 continue;
             }
-            if (!isFrozen(target.getUniqueId())) {
+            if (living.getUniqueId().equals(caster.getUniqueId())) {
                 continue;
             }
-            if (target.getLocation().distance(center) <= EFFECT_RADIUS) {
-                target.damage(DAMAGE_AMOUNT, caster);
-                target.sendMessage(ChatColor.DARK_PURPLE + "The coffin shatters, crushing you in darkness!");
+            if (!box.contains(living.getLocation().toVector())) {
+                continue;
+            }
+            living.damage(DAMAGE_AMOUNT, caster);
+            if (living instanceof Player player) {
+                player.sendMessage(ChatColor.DARK_PURPLE + "The coffin shatters, crushing you in darkness!");
             }
         }
 
