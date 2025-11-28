@@ -2,7 +2,6 @@ package com.example.blackflash;
 
 import java.util.UUID;
 
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -30,11 +29,15 @@ public class ReverseCursedTechniqueListener implements Listener {
         }
 
         ItemStack item = event.getPlayer().getInventory().getItemInMainHand();
-        if (item.getType() != Material.EMERALD) {
+        if (ability.isAbilityItem(item)) {
+            ability.tryActivate(event.getPlayer());
+            event.setCancelled(true);
             return;
         }
 
-        ability.tryActivate(event.getPlayer());
+        if (ability.isChanneling(event.getPlayer().getUniqueId()) || ability.isPenalized(event.getPlayer().getUniqueId())) {
+            event.setCancelled(true);
+        }
     }
 
     @EventHandler

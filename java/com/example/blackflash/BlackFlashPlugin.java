@@ -11,13 +11,18 @@ public class BlackFlashPlugin extends JavaPlugin {
     private ReverseCursedTechniqueAbility reverseCursedTechniqueAbility;
     private BlackCoffinAbility blackCoffinAbility;
     private NamespacedKey blackFlashAxeKey;
+    private NamespacedKey reverseTechniqueItemKey;
+    private NamespacedKey hadoItemKey;
 
     @Override
     public void onEnable() {
         this.blackFlashAxeKey = new NamespacedKey(this, "blackflash_axe");
+        this.reverseTechniqueItemKey = new NamespacedKey(this, "rct_item");
+        this.hadoItemKey = new NamespacedKey(this, "hado_item");
+
         this.blackFlashAbility = new BlackFlashAbility(this, blackFlashAxeKey);
-        this.reverseCursedTechniqueAbility = new ReverseCursedTechniqueAbility(this);
-        this.blackCoffinAbility = new BlackCoffinAbility(this);
+        this.reverseCursedTechniqueAbility = new ReverseCursedTechniqueAbility(this, reverseTechniqueItemKey);
+        this.blackCoffinAbility = new BlackCoffinAbility(this, hadoItemKey);
         getServer().getPluginManager().registerEvents(new BlackFlashListener(blackFlashAbility), this);
         getServer().getPluginManager().registerEvents(new ReverseCursedTechniqueListener(reverseCursedTechniqueAbility), this);
         getServer().getPluginManager().registerEvents(new BlackCoffinListener(blackCoffinAbility), this);
@@ -46,11 +51,18 @@ public class BlackFlashPlugin extends JavaPlugin {
             getLogger().warning("Failed to register /blackflash command.");
         }
 
-        PluginCommand coffinCommand = getCommand("hado90");
-        if (coffinCommand != null) {
-            coffinCommand.setExecutor(new BlackCoffinCommand(blackCoffinAbility));
+        PluginCommand rctCommand = getCommand("giverct");
+        if (rctCommand != null) {
+            rctCommand.setExecutor(new ReverseCursedTechniqueCommand(reverseCursedTechniqueAbility));
         } else {
-            getLogger().warning("Failed to register /hado90 command.");
+            getLogger().warning("Failed to register /giverct command.");
+        }
+
+        PluginCommand hadoCommand = getCommand("givehado90");
+        if (hadoCommand != null) {
+            hadoCommand.setExecutor(new GiveHado90Command(blackCoffinAbility));
+        } else {
+            getLogger().warning("Failed to register /givehado90 command.");
         }
     }
 }

@@ -11,37 +11,63 @@ import java.util.UUID;
 import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.BoundingBox;
 
-/**
- * Handles the logic for casting Hado #90: Black Coffin.
- */
 public class BlackCoffinAbility {
 
     private static final double EFFECT_RADIUS = 5.0;
     private static final int COOLDOWN_SECONDS = 30;
-    private static final double DAMAGE_AMOUNT = 10.0;
-    private static final double COFFIN_HALF_SIZE = 2.5;
-    private static final int COFFIN_HEIGHT = 8;
-    private static final int CONSTRUCTION_INTERVAL_TICKS = 4;
-    private static final int SHATTER_DELAY_TICKS = 10;
+    private static final double DAMAGE_AMOUNT = 40.0;
+    private static final double COFFIN_HALF_SIZE = 5.0; // 10x10 square
+    private static final int COFFIN_HEIGHT = 12;
+    private static final int CONSTRUCTION_INTERVAL_TICKS = 2;
 
     private final BlackFlashPlugin plugin;
+    private final NamespacedKey itemKey;
     private final CooldownManager cooldownManager = new CooldownManager();
     private final Set<UUID> frozenPlayers = new HashSet<>();
     private final Map<UUID, Integer> freezeCounts = new HashMap<>();
     private final List<BukkitTask> runningTasks = new ArrayList<>();
 
-    public BlackCoffinAbility(BlackFlashPlugin plugin) {
+    public BlackCoffinAbility(BlackFlashPlugin plugin, NamespacedKey itemKey) {
         this.plugin = plugin;
+        this.itemKey = itemKey;
+    }
+
+    public ItemStack createItem() {
+        ItemStack item = new ItemStack(Material.END_CRYSTAL);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(ChatColor.DARK_PURPLE + "Hado #90: Black Coffin");
+            meta.setLore(java.util.List.of(ChatColor.GRAY + "Compress space into a crushing prison.",
+                    ChatColor.DARK_PURPLE + "Right-click to cast."));
+            meta.getPersistentDataContainer().set(itemKey, PersistentDataType.INTEGER, 1);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    public boolean isAbilityItem(ItemStack stack) {
+        if (stack == null || !stack.hasItemMeta()) {
+            return false;
+        }
+        ItemMeta meta = stack.getItemMeta();
+        return meta != null && meta.getPersistentDataContainer().has(itemKey, PersistentDataType.INTEGER);
     }
 
     public boolean isFrozen(UUID id) {
@@ -55,10 +81,8 @@ public class BlackCoffinAbility {
     }
 
     public void clearAll() {
-        for (UUID id : new HashSet<>(frozenPlayers)) {
-            freezeCounts.remove(id);
-        }
         frozenPlayers.clear();
+        freezeCounts.clear();
         for (BukkitTask task : new ArrayList<>(runningTasks)) {
             task.cancel();
         }
@@ -75,8 +99,7 @@ public class BlackCoffinAbility {
 
         cooldownManager.setCooldown(casterId, COOLDOWN_SECONDS);
         caster.sendMessage(ChatColor.DARK_PURPLE + "You unleash Hado #90: Black Coffin!");
-        caster.playSound(caster.getLocation(), Sound.ENTITY_ILLUSIONER_CAST_SPELL, 1.2f, 0.7f);
-        spawnAura(caster);
+        playInitialAura(caster);
 
         List<Player> targets = findTargets(caster);
         freezeTargets(targets);
@@ -126,11 +149,18 @@ public class BlackCoffinAbility {
         }
     }
 
+    private void playInitialAura(Player caster) {
+        Location loc = caster.getLocation().add(0, 1, 0);
+        caster.getWorld().spawnParticle(Particle.SPELL_WITCH, loc, 80, 1.2, 0.8, 1.2, 0.05);
+        caster.getWorld().spawnParticle(Particle.REVERSE_PORTAL, loc, 40, 1.2, 0.8, 1.2, 0.02);
+        caster.playSound(loc, Sound.ENTITY_ILLUSIONER_CAST_SPELL, 1.4f, 0.6f);
+    }
+
     private void startConstruction(Player caster, List<Player> targets) {
         Location center = caster.getLocation().clone();
         World world = caster.getWorld();
-        Particle.DustOptions purpleDust = new Particle.DustOptions(Color.fromRGB(126, 35, 182), 1.3f);
-        Particle.DustOptions darkDust = new Particle.DustOptions(Color.fromRGB(25, 15, 25), 1.4f);
+        Particle.DustOptions purpleDust = new Particle.DustOptions(Color.fromRGB(138, 43, 226), 1.6f);
+        Particle.DustOptions darkDust = new Particle.DustOptions(Color.fromRGB(15, 5, 25), 1.6f);
 
         BukkitTask[] handle = new BukkitTask[1];
         BukkitRunnable runnable = new BukkitRunnable() {
@@ -140,76 +170,81 @@ public class BlackCoffinAbility {
             @Override
             public void run() {
                 if (layer < COFFIN_HEIGHT) {
-                    spawnCoffinLayers(world, center, layer + 1, purpleDust, darkDust);
-                    if (layer % 2 == 0) {
-                        world.playSound(center, Sound.BLOCK_BEACON_AMBIENT, 0.6f, 0.5f);
-                    }
                     layer++;
+                    drawCoffin(world, center, layer, purpleDust, darkDust);
                     return;
                 }
 
-                if (holdTicks < SHATTER_DELAY_TICKS) {
-                    spawnCoffinLayers(world, center, COFFIN_HEIGHT, purpleDust, darkDust);
-                    holdTicks += CONSTRUCTION_INTERVAL_TICKS;
+                if (holdTicks < 2) {
+                    holdTicks++;
+                    drawCoffin(world, center, COFFIN_HEIGHT, purpleDust, darkDust);
                     return;
                 }
 
                 cancel();
-                runningTasks.remove(handle[0]);
+                if (handle[0] != null) {
+                    runningTasks.remove(handle[0]);
+                }
                 shatter(caster, center, targets);
             }
         };
+
         BukkitTask task = runnable.runTaskTimer(plugin, 0L, CONSTRUCTION_INTERVAL_TICKS);
         handle[0] = task;
         runningTasks.add(task);
     }
 
-    private void spawnAura(Player caster) {
-        Location loc = caster.getLocation().add(0, 1, 0);
-        caster.getWorld().spawnParticle(Particle.SPELL_WITCH, loc, 50, 0.8, 0.6, 0.8, 0.01);
-        caster.getWorld().spawnParticle(Particle.PORTAL, loc, 30, 0.8, 0.5, 0.8, 0.02);
+    private void drawCoffin(World world, Location center, int currentHeight, Particle.DustOptions purple,
+            Particle.DustOptions dark) {
+        for (int i = 0; i < currentHeight; i++) {
+            double y = center.getY() + i;
+            spawnLayer(world, center, y, purple, dark);
+        }
     }
 
-    private void spawnBoxLayer(World world, Location center, double y, Particle.DustOptions purple, Particle.DustOptions dark) {
+    private void spawnLayer(World world, Location center, double y, Particle.DustOptions purple,
+            Particle.DustOptions dark) {
+        double step = 0.3;
         double radius = COFFIN_HALF_SIZE;
-        double step = 0.5;
         for (double x = -radius; x <= radius; x += step) {
-            Location loc1 = new Location(world, center.getX() + x, y, center.getZ() - radius);
-            Location loc2 = new Location(world, center.getX() + x, y, center.getZ() + radius);
-            world.spawnParticle(Particle.REDSTONE, loc1, 2, 0, 0, 0, 0, dark);
-            world.spawnParticle(Particle.REDSTONE, loc2, 2, 0, 0, 0, 0, purple);
+            Location north = new Location(world, center.getX() + x, y, center.getZ() - radius);
+            Location south = new Location(world, center.getX() + x, y, center.getZ() + radius);
+            world.spawnParticle(Particle.REDSTONE, north, 3, 0, 0, 0, 0, purple);
+            world.spawnParticle(Particle.REDSTONE, south, 3, 0, 0, 0, 0, dark);
+            world.spawnParticle(Particle.ASH, north, 1, 0, 0, 0, 0.01);
+            world.spawnParticle(Particle.ASH, south, 1, 0, 0, 0, 0.01);
         }
         for (double z = -radius; z <= radius; z += step) {
-            Location loc1 = new Location(world, center.getX() - radius, y, center.getZ() + z);
-            Location loc2 = new Location(world, center.getX() + radius, y, center.getZ() + z);
-            world.spawnParticle(Particle.REDSTONE, loc1, 2, 0, 0, 0, 0, purple);
-            world.spawnParticle(Particle.REDSTONE, loc2, 2, 0, 0, 0, 0, dark);
+            Location west = new Location(world, center.getX() - radius, y, center.getZ() + z);
+            Location east = new Location(world, center.getX() + radius, y, center.getZ() + z);
+            world.spawnParticle(Particle.REDSTONE, west, 3, 0, 0, 0, 0, dark);
+            world.spawnParticle(Particle.REDSTONE, east, 3, 0, 0, 0, 0, purple);
+            world.spawnParticle(Particle.SMOKE_LARGE, west, 2, 0, 0, 0, 0.01);
+            world.spawnParticle(Particle.SMOKE_LARGE, east, 2, 0, 0, 0, 0.01);
         }
-        world.spawnParticle(Particle.SMOKE_LARGE, center.clone().add(0, y - center.getY(), 0), 14, radius, 0.1, radius, 0.02);
-        world.spawnParticle(Particle.PORTAL, center.clone().add(0, y - center.getY(), 0), 6, 0.2, 0.1, 0.2, 0.02);
-    }
 
-    private void spawnCoffinLayers(World world, Location center, int layers, Particle.DustOptions purple,
-            Particle.DustOptions dark) {
-        for (int i = 0; i < layers; i++) {
-            double y = center.getY() + i;
-            spawnBoxLayer(world, center, y, purple, dark);
-        }
+        world.spawnParticle(Particle.SMOKE_LARGE, center.clone().add(0, y - center.getY(), 0), 40, radius, 0.1,
+                radius, 0.02);
+        world.spawnParticle(Particle.REVERSE_PORTAL, center.clone().add(0, y - center.getY(), 0), 20, radius * 0.1,
+                0.1, radius * 0.1, 0.01);
     }
 
     private void shatter(Player caster, Location center, List<Player> targets) {
         World world = center.getWorld();
-        world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 1.4f, 0.7f);
-        world.playSound(center, Sound.BLOCK_GLASS_BREAK, 1.0f, 0.9f);
-        world.playSound(center, Sound.ENTITY_WITHER_DEATH, 0.7f, 0.8f);
-        world.spawnParticle(Particle.EXPLOSION_LARGE, center, 6, 0.6, 0.6, 0.6, 0.02);
-        world.spawnParticle(Particle.ASH, center, 120, COFFIN_HALF_SIZE, 1.2, COFFIN_HALF_SIZE, 0.02);
-        world.spawnParticle(Particle.SPELL_WITCH, center, 100, COFFIN_HALF_SIZE, 1.2, COFFIN_HALF_SIZE, 0.02);
+        world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 1.6f, 0.8f);
+        world.playSound(center, Sound.BLOCK_GLASS_BREAK, 1.2f, 0.9f);
+        world.playSound(center, Sound.ENTITY_WITHER_DEATH, 0.8f, 0.7f);
+
+        world.spawnParticle(Particle.EXPLOSION_HUGE, center, 1);
+        world.spawnParticle(Particle.ASH, center, 200, COFFIN_HALF_SIZE, 1.4, COFFIN_HALF_SIZE, 0.02);
+        world.spawnParticle(Particle.SPELL_WITCH, center, 200, COFFIN_HALF_SIZE, 1.4, COFFIN_HALF_SIZE, 0.02);
+        world.spawnParticle(Particle.SMOKE_LARGE, center, 250, COFFIN_HALF_SIZE, 1.4, COFFIN_HALF_SIZE, 0.02);
 
         BoundingBox box = BoundingBox.of(
                 new Location(world, center.getX() - COFFIN_HALF_SIZE, center.getY(), center.getZ() - COFFIN_HALF_SIZE),
                 new Location(world, center.getX() + COFFIN_HALF_SIZE, center.getY() + COFFIN_HEIGHT,
                         center.getZ() + COFFIN_HALF_SIZE));
+
         for (Entity entity : world.getNearbyEntities(box)) {
             if (!(entity instanceof LivingEntity living)) {
                 continue;
@@ -221,9 +256,8 @@ public class BlackCoffinAbility {
                 continue;
             }
             living.damage(DAMAGE_AMOUNT, caster);
-            if (living instanceof Player player) {
-                player.sendMessage(ChatColor.DARK_PURPLE + "The coffin shatters, crushing you in darkness!");
-            }
+            living.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 160, 0, false, true, true));
+            living.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 600, 0, false, true, true));
         }
 
         unfreezeTargets(targets);

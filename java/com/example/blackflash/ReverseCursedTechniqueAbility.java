@@ -5,11 +5,17 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.bukkit.ChatColor;
+import org.bukkit.Color;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -19,16 +25,39 @@ public class ReverseCursedTechniqueAbility {
 
     private static final int COOLDOWN_SECONDS = 60;
     private static final int PENALTY_SECONDS = 5;
-    private static final int PARTICLE_INTERVAL_TICKS = 10;
+    private static final int PARTICLE_INTERVAL_TICKS = 4;
     private static final int HEALTH_CHECK_TICKS = 10;
 
     private final BlackFlashPlugin plugin;
+    private final NamespacedKey itemKey;
     private final CooldownManager cooldownManager = new CooldownManager();
     private final Map<UUID, ChannelState> activeChannels = new HashMap<>();
     private final Map<UUID, Long> penaltyUntil = new HashMap<>();
 
-    public ReverseCursedTechniqueAbility(BlackFlashPlugin plugin) {
+    public ReverseCursedTechniqueAbility(BlackFlashPlugin plugin, NamespacedKey itemKey) {
         this.plugin = plugin;
+        this.itemKey = itemKey;
+    }
+
+    public ItemStack createItem() {
+        ItemStack stack = new ItemStack(Material.EMERALD);
+        ItemMeta meta = stack.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(ChatColor.AQUA + "Reverse Cursed Technique");
+            meta.setLore(java.util.List.of(ChatColor.GRAY + "Channel cursed energy to heal.",
+                    ChatColor.DARK_AQUA + "Right-click to begin regeneration."));
+            meta.getPersistentDataContainer().set(itemKey, PersistentDataType.INTEGER, 1);
+            stack.setItemMeta(meta);
+        }
+        return stack;
+    }
+
+    public boolean isAbilityItem(ItemStack itemStack) {
+        if (itemStack == null || !itemStack.hasItemMeta()) {
+            return false;
+        }
+        ItemMeta meta = itemStack.getItemMeta();
+        return meta != null && meta.getPersistentDataContainer().has(itemKey, PersistentDataType.INTEGER);
     }
 
     public void tryActivate(Player player) {
@@ -62,7 +91,7 @@ public class ReverseCursedTechniqueAbility {
         applyImmobility(player, Integer.MAX_VALUE);
         applyRegeneration(player);
 
-        player.playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.0f, 1.2f);
+        player.playSound(player.getLocation(), Sound.ENTITY_ILLUSIONER_CAST_SPELL, 1.0f, 1.0f);
         player.sendMessage(ChatColor.AQUA + "Reverse Cursed Technique activated! You are regenerating.");
 
         BukkitTask particleTask = startParticleTask(player, id);
@@ -88,8 +117,9 @@ public class ReverseCursedTechniqueAbility {
                 }
 
                 Location loc = player.getLocation().add(0, 1, 0);
-                player.getWorld().spawnParticle(Particle.SOUL, loc, 12, 0.6, 0.4, 0.6, 0.02);
-                player.getWorld().spawnParticle(Particle.END_ROD, loc, 4, 0.3, 0.2, 0.3, 0.01);
+                player.getWorld().spawnParticle(Particle.REDSTONE, loc, 50, 0.8, 0.6, 0.8, 0.02,
+                        new Particle.DustOptions(Color.fromRGB(80, 180, 255), 1.2f));
+                player.getWorld().spawnParticle(Particle.SPELL_INSTANT, loc, 30, 0.5, 0.4, 0.5, 0.02);
             }
         }.runTaskTimer(plugin, 0L, PARTICLE_INTERVAL_TICKS);
     }
