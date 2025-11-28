@@ -42,11 +42,16 @@ public class AdvancedBankaiAbility {
     private static final int BANKAI_DURATION_SECONDS = 90;
     private static final int GETSUGA_COST_SECONDS = 10;
     private static final int GETSUGA_COOLDOWN_SECONDS = 15;
+    private static final int DASH_COOLDOWN_SECONDS = 9;
+    private static final int DASH_COST_SECONDS = 5;
     private static final double GETSUGA_RANGE = 15.0;
     private static final double SLASH_RADIUS = 0.9;
     private static final double TENSHOU_RADIUS = 2.6;
     private static final double SLASH_DAMAGE = 8.0;
     private static final double TENSHOU_DAMAGE = 14.0;
+    private static final double DASH_DISTANCE = 5.0;
+    private static final double DASH_IMPACT_DAMAGE = 10.0;
+    private static final double DASH_IMPACT_RADIUS = 2.0;
 
     private final BlackFlashPlugin plugin;
     private final NamespacedKey bankaiItemKey;
@@ -101,7 +106,110 @@ public class AdvancedBankaiAbility {
         if (data.transforming) {
             return;
         }
-        attemptGetsuga(player, data);
+        if (player.isSneaking()) {
+            attemptDash(player, data);
+        } else {
+            attemptGetsuga(player, data);
+        }
+    }
+
+    private void attemptDash(Player player, BankaiData data) {
+        if (!data.active) {
+            return;
+        }
+        long now = Instant.now().toEpochMilli();
+        if (data.dashCooldownEnd > now) {
+            long remaining = (data.dashCooldownEnd - now + 999) / 1000;
+            player.sendActionBar(Component.text("Dash cooling down: " + remaining + "s", NamedTextColor.YELLOW));
+            return;
+        }
+        if (data.remainingSeconds <= DASH_COST_SECONDS) {
+            player.sendActionBar(Component.text("Not enough Bankai time!", NamedTextColor.RED));
+            return;
+        }
+
+        data.remainingSeconds -= DASH_COST_SECONDS;
+        sendTimerBar(player, data.remainingSeconds);
+        data.dashCooldownEnd = now + DASH_COOLDOWN_SECONDS * 1000L;
+
+        Location start = player.getLocation();
+        Vector direction = start.getDirection().setY(0).normalize();
+        if (direction.lengthSquared() == 0) {
+            direction = new Vector(0, 0, 1);
+        }
+
+        Location lastSafe = start.clone();
+        List<Location> trail = new ArrayList<>();
+        for (double traveled = 0.5; traveled <= DASH_DISTANCE; traveled += 0.5) {
+            Location next = start.clone().add(direction.clone().multiply(traveled));
+            if (!isPassable(next)) {
+                break;
+            }
+            lastSafe = next;
+            trail.add(next.clone());
+        }
+
+        spawnDashTrail(trail);
+        lastSafe.setYaw(start.getYaw());
+        lastSafe.setPitch(start.getPitch());
+        player.teleport(lastSafe);
+        player.setVelocity(direction.clone().multiply(0.6).setY(0.0));
+        player.getWorld().playSound(lastSafe, Sound.ENTITY_ENDER_DRAGON_FLAP, 0.7f, 1.2f);
+
+        applyDashImpact(player, lastSafe, direction);
+    }
+
+    private boolean isPassable(Location location) {
+        World world = location.getWorld();
+        if (world == null) {
+            return false;
+        }
+        return world.getBlockAt(location).isPassable() && world.getBlockAt(location.clone().add(0, 1, 0)).isPassable();
+    }
+
+    private void spawnDashTrail(List<Location> trail) {
+        for (Location point : trail) {
+            World world = point.getWorld();
+            if (world == null) {
+                continue;
+            }
+            Particle.DustOptions red = new Particle.DustOptions(Color.fromRGB(200, 0, 0), 1.4f);
+            Particle.DustOptions black = new Particle.DustOptions(Color.fromRGB(10, 10, 10), 1.2f);
+            world.spawnParticle(Particle.REDSTONE, point, 8, 0.2, 0.1, 0.2, red);
+            world.spawnParticle(Particle.REDSTONE, point, 6, 0.2, 0.1, 0.2, black);
+            world.spawnParticle(Particle.SWEEP_ATTACK, point, 1, 0.0, 0.0, 0.0, 0.0);
+        }
+    }
+
+    private void applyDashImpact(Player player, Location center, Vector direction) {
+        World world = center.getWorld();
+        if (world == null) {
+            return;
+        }
+        world.spawnParticle(Particle.EXPLOSION_NORMAL, center, 12, 0.6, 0.4, 0.6, 0.05);
+        Particle.DustOptions red = new Particle.DustOptions(Color.fromRGB(255, 30, 30), 1.6f);
+        world.spawnParticle(Particle.REDSTONE, center.clone().add(0, 1, 0), 40, 0.8, 0.8, 0.8, red);
+        world.playSound(center, Sound.ENTITY_WITHER_HURT, 0.6f, 1.2f);
+
+        double radiusSquared = DASH_IMPACT_RADIUS * DASH_IMPACT_RADIUS;
+        for (LivingEntity entity : world.getLivingEntities()) {
+            if (entity.equals(player)) {
+                continue;
+            }
+            if (entity.getLocation().getWorld() != world) {
+                continue;
+            }
+            if (entity.getLocation().distanceSquared(center) > radiusSquared) {
+                continue;
+            }
+            entity.damage(DASH_IMPACT_DAMAGE, player);
+            Vector knockback = entity.getLocation().toVector().subtract(center.toVector()).normalize().multiply(0.9);
+            knockback.setY(0.35);
+            if (Double.isNaN(knockback.getX()) || Double.isNaN(knockback.getZ())) {
+                knockback = direction.clone().multiply(0.9).setY(0.35);
+            }
+            entity.setVelocity(knockback);
+        }
     }
 
     public void reset(Player player) {
@@ -155,6 +263,8 @@ public class AdvancedBankaiAbility {
         data.active = true;
         data.remainingSeconds = BANKAI_DURATION_SECONDS;
         data.combo = 0;
+        data.cooldownEnd = 0L;
+        data.dashCooldownEnd = 0L;
 
         AttributeInstance maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
         if (maxHealth != null) {
@@ -333,10 +443,7 @@ public class AdvancedBankaiAbility {
     }
 
     private void sendTimerBar(Player player, int remainingSeconds) {
-        int minutes = remainingSeconds / 60;
-        int seconds = remainingSeconds % 60;
-        String time = String.format("%02d:%02d", minutes, seconds);
-        player.sendActionBar(Component.text("Bankai: " + time, NamedTextColor.RED));
+        player.sendActionBar(Component.text("Bankai time left: " + remainingSeconds + "s", NamedTextColor.RED));
     }
 
     private BukkitTask createBeamTask(Player player) {
@@ -422,9 +529,10 @@ public class AdvancedBankaiAbility {
         }
         data.active = false;
         data.transforming = false;
-        if (clearState) {
-            states.remove(player.getUniqueId());
-        }
+        data.combo = 0;
+        data.cooldownEnd = 0L;
+        data.dashCooldownEnd = 0L;
+        states.remove(player.getUniqueId());
         player.sendActionBar(Component.text("Bankai ended.", NamedTextColor.GRAY));
     }
 
@@ -435,6 +543,7 @@ public class AdvancedBankaiAbility {
         private double originalMaxHealth;
         private int combo;
         private long cooldownEnd;
+        private long dashCooldownEnd;
         private BukkitTask particleTask;
         private BukkitTask timerTask;
         private BukkitTask beamTask;
