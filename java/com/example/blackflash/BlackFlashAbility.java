@@ -1,6 +1,8 @@
 package com.example.blackflash;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -8,32 +10,88 @@ import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemFlag;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 
+/**
+ * Core logic for the Black Flash ability.
+ */
 public class BlackFlashAbility {
 
-    private static final long WINDOW_MILLIS = 5_000L;
-    private static final int SUCCESS_COOLDOWN_SECONDS = 15;
-    private static final int MISS_COOLDOWN_SECONDS = 60;
+    private static final long WINDOW_TICKS = 60L; // 3 seconds
+    private static final int SUCCESS_COOLDOWN_SECONDS = 5;
+    private static final int MISS_COOLDOWN_SECONDS = 30;
+    private static final int DURATION_REDUCTION_TICKS = 20; // Subtract 1 second from each base duration
+
+    private static final int BASE_NAUSEA_TICKS = 120; // 6 seconds
+    private static final int BASE_WEAKNESS_TICKS = 200; // 10 seconds
+    private static final int BASE_SLOW_TICKS = 140; // 7 seconds
 
     private final BlackFlashPlugin plugin;
     private final CooldownManager cooldownManager;
-    private final Map<UUID, Long> activeAttempts = new HashMap<>();
+    private final NamespacedKey axeKey;
+    private final Map<UUID, Attempt> activeAttempts = new HashMap<>();
 
-    public BlackFlashAbility(BlackFlashPlugin plugin) {
+    public BlackFlashAbility(BlackFlashPlugin plugin, NamespacedKey axeKey) {
         this.plugin = plugin;
+        this.axeKey = axeKey;
         this.cooldownManager = new CooldownManager();
     }
 
+    /**
+     * Creates the special Black Flash Golden Axe with custom name, lore, and a persistent data marker.
+     */
+    public ItemStack createBlackFlashAxe() {
+        ItemStack axe = new ItemStack(Material.GOLDEN_AXE);
+        ItemMeta meta = axe.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(ChatColor.DARK_RED + "Black Flash Axe");
+            List<String> lore = new ArrayList<>();
+            lore.add(ChatColor.GRAY + "Channel cursed energy in a single moment.");
+            lore.add(ChatColor.DARK_RED + "Right-click to arm Black Flash.");
+            meta.setLore(lore);
+            meta.getPersistentDataContainer().set(axeKey, PersistentDataType.BYTE, (byte) 1);
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+            axe.setItemMeta(meta);
+        }
+        return axe;
+    }
+
+    /**
+     * Checks if the provided item is the special Black Flash Golden Axe.
+     */
+    public boolean isBlackFlashAxe(ItemStack itemStack) {
+        if (itemStack == null || itemStack.getType() != Material.GOLDEN_AXE) {
+            return false;
+        }
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) {
+            return false;
+        }
+        PersistentDataContainer data = meta.getPersistentDataContainer();
+        Byte marker = data.get(axeKey, PersistentDataType.BYTE);
+        return marker != null && marker == (byte) 1;
+    }
+
+    /**
+     * Handles right-click activation to arm Black Flash for the next hit.
+     */
     public void handleActivation(Player player) {
         UUID id = player.getUniqueId();
-        if (!isHoldingGoldenAxe(player)) {
-            player.sendMessage(ChatColor.RED + "You must hold a Golden Axe to unleash Black Flash.");
+        if (!isBlackFlashAxe(player.getInventory().getItemInMainHand())) {
+            player.sendMessage(ChatColor.RED + "You need the Black Flash Axe to use this ability.");
             return;
         }
 
@@ -43,93 +101,104 @@ public class BlackFlashAbility {
             return;
         }
 
-        if (hasActiveAttempt(player)) {
-            player.sendMessage(ChatColor.YELLOW + "Black Flash is already primed! Strike now.");
+        if (activeAttempts.containsKey(id)) {
+            player.sendMessage(ChatColor.YELLOW + "Black Flash is already armed! Strike now.");
             return;
         }
 
-        activateAttempt(player);
+        armBlackFlash(player, id);
     }
 
+    /**
+     * Handles a potential Black Flash strike when the player damages an entity.
+     */
     public void handleStrike(Player player, LivingEntity target) {
-        if (!isHoldingGoldenAxe(player)) {
+        UUID id = player.getUniqueId();
+        Attempt attempt = activeAttempts.remove(id);
+        if (attempt == null) {
             return;
         }
 
-        if (!hasActiveAttempt(player)) {
-            return;
-        }
+        attempt.windowTask.cancel();
+        removeStrength(player);
+        cooldownManager.setCooldown(id, SUCCESS_COOLDOWN_SECONDS);
 
-        consumeAttempt(player.getUniqueId());
-        cooldownManager.setCooldown(player.getUniqueId(), SUCCESS_COOLDOWN_SECONDS);
+        applyNegativeEffects(target);
+        applyPositiveEffects(player);
+        spawnBlackFlashEffects(player, target);
 
-        applyEffects(player, target);
-        spawnParticles(player.getLocation());
-        spawnParticles(target.getLocation());
-
-        player.sendMessage(ChatColor.DARK_RED + "You land a devastating Black Flash!");
+        player.sendMessage(ChatColor.DARK_RED + "Black Flash connects!" + ChatColor.GRAY + " Cooldown: "
+                + SUCCESS_COOLDOWN_SECONDS + "s");
         if (target instanceof Player otherPlayer) {
-            otherPlayer.sendMessage(ChatColor.RED + player.getName() + " struck you with Black Flash!");
+            otherPlayer.sendMessage(ChatColor.RED + player.getName() + " enveloped you in Black Flash!");
         }
     }
 
-    private boolean hasActiveAttempt(Player player) {
-        UUID id = player.getUniqueId();
-        Long expires = activeAttempts.get(id);
-        if (expires == null) {
-            return false;
-        }
-        if (expires < System.currentTimeMillis()) {
-            activeAttempts.remove(id);
-            return false;
-        }
-        return true;
-    }
+    private void armBlackFlash(Player player, UUID id) {
+        applyStrength(player);
+        player.sendMessage(ChatColor.DARK_GRAY + "Black Flash armed for 3 seconds! Land your strike.");
+        player.getWorld().spawnParticle(Particle.CRIT_MAGIC, player.getLocation().add(0, 1, 0), 12, 0.4, 0.2, 0.4, 0.01);
+        player.playSound(player.getLocation(), Sound.ITEM_TRIDENT_THUNDER, 0.6f, 1.4f);
 
-    private void activateAttempt(Player player) {
-        UUID id = player.getUniqueId();
-        activeAttempts.put(id, System.currentTimeMillis() + WINDOW_MILLIS);
-        player.sendMessage(ChatColor.GRAY + "You focus cursed energy... Black Flash ready! (5s)");
-
-        new BukkitRunnable() {
+        BukkitTask task = new BukkitRunnable() {
             @Override
             public void run() {
-                if (hasActiveAttempt(player)) {
-                    consumeAttempt(id);
+                if (activeAttempts.remove(id) != null) {
+                    removeStrength(player);
                     cooldownManager.setCooldown(id, MISS_COOLDOWN_SECONDS);
-                    player.sendMessage(ChatColor.RED + "Black Flash fizzled. 60s cooldown applied.");
+                    player.sendMessage(ChatColor.RED + "Black Flash missed! Cooldown: " + MISS_COOLDOWN_SECONDS + "s");
                 }
             }
-        }.runTaskLater(plugin, WINDOW_MILLIS / 50L);
+        }.runTaskLater(plugin, WINDOW_TICKS);
+
+        activeAttempts.put(id, new Attempt(task));
     }
 
-    private void consumeAttempt(UUID id) {
-        activeAttempts.remove(id);
+    private void applyStrength(Player player) {
+        player.addPotionEffect(new PotionEffect(PotionEffectType.INCREASE_DAMAGE, (int) WINDOW_TICKS, 1, false, true, true));
     }
 
-    private boolean isHoldingGoldenAxe(Player player) {
-        return player.getInventory().getItemInMainHand().getType() == Material.GOLDEN_AXE;
+    private void removeStrength(Player player) {
+        PotionEffect effect = player.getPotionEffect(PotionEffectType.INCREASE_DAMAGE);
+        if (effect != null && effect.getAmplifier() == 1 && effect.getDuration() <= WINDOW_TICKS + 20) {
+            player.removePotionEffect(PotionEffectType.INCREASE_DAMAGE);
+        }
     }
 
-    private void applyEffects(Player player, LivingEntity target) {
-        target.addPotionEffect(new PotionEffect(PotionEffectType.CONFUSION, 5 * 20, 1, false, true, true));
-        target.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 8 * 20, 1, false, true, true));
-        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 4 * 20, 10, false, true, true));
+    private void applyNegativeEffects(LivingEntity target) {
+        target.addPotionEffect(new PotionEffect(PotionEffectType.CONFUSION,
+                Math.max(1, BASE_NAUSEA_TICKS - DURATION_REDUCTION_TICKS), 1, false, true, true));
+        target.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS,
+                Math.max(1, BASE_WEAKNESS_TICKS - DURATION_REDUCTION_TICKS), 1, false, true, true));
+        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW,
+                Math.max(1, BASE_SLOW_TICKS - DURATION_REDUCTION_TICKS), 4, false, true, true));
+    }
 
+    private void applyPositiveEffects(Player player) {
         player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 10 * 20, 0, false, true, true));
         player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 5 * 20, 0, false, true, true));
     }
 
-    private void spawnParticles(Location location) {
-        Location loc = location.clone().add(0, 1, 0);
-        Particle.DustOptions red = new Particle.DustOptions(Color.fromRGB(220, 25, 25), 1.2f);
-        Particle.DustOptions black = new Particle.DustOptions(Color.fromRGB(10, 10, 10), 1.1f);
-        loc.getWorld().spawnParticle(Particle.REDSTONE, loc, 25, 0.4, 0.4, 0.4, red);
-        loc.getWorld().spawnParticle(Particle.REDSTONE, loc, 20, 0.3, 0.3, 0.3, black);
-        loc.getWorld().spawnParticle(Particle.SMOKE_NORMAL, loc, 10, 0.4, 0.4, 0.4, 0.01);
+    private void spawnBlackFlashEffects(Player player, LivingEntity target) {
+        Location targetLoc = target.getLocation().add(0, 1, 0);
+        Location playerLoc = player.getLocation().add(0, 1, 0);
+
+        Particle.DustOptions red = new Particle.DustOptions(Color.fromRGB(200, 25, 25), 1.4f);
+        Particle.DustOptions black = new Particle.DustOptions(Color.fromRGB(10, 10, 10), 1.2f);
+
+        target.getWorld().spawnParticle(Particle.REDSTONE, targetLoc, 35, 0.5, 0.5, 0.5, red);
+        target.getWorld().spawnParticle(Particle.REDSTONE, targetLoc, 30, 0.4, 0.4, 0.4, black);
+        target.getWorld().spawnParticle(Particle.SMOKE_LARGE, targetLoc, 15, 0.5, 0.4, 0.5, 0.02);
+        player.getWorld().spawnParticle(Particle.CRIT, playerLoc, 20, 0.3, 0.2, 0.3, 0.02);
+
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_WITHER_SPAWN, 1.2f, 1.2f);
     }
 
-    public CooldownManager getCooldownManager() {
-        return cooldownManager;
+    private static class Attempt {
+        private final BukkitTask windowTask;
+
+        private Attempt(BukkitTask windowTask) {
+            this.windowTask = windowTask;
+        }
     }
 }
