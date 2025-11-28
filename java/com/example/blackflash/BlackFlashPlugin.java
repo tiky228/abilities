@@ -10,22 +10,27 @@ public class BlackFlashPlugin extends JavaPlugin {
     private BlackFlashAbility blackFlashAbility;
     private ReverseCursedTechniqueAbility reverseCursedTechniqueAbility;
     private BlackCoffinAbility blackCoffinAbility;
+    private BankaiAbility bankaiAbility;
     private NamespacedKey blackFlashAxeKey;
     private NamespacedKey reverseTechniqueItemKey;
     private NamespacedKey hadoItemKey;
+    private NamespacedKey bankaiItemKey;
 
     @Override
     public void onEnable() {
         this.blackFlashAxeKey = new NamespacedKey(this, "blackflash_axe");
         this.reverseTechniqueItemKey = new NamespacedKey(this, "rct_item");
         this.hadoItemKey = new NamespacedKey(this, "hado_item");
+        this.bankaiItemKey = new NamespacedKey(this, "bankai_item");
 
         this.blackFlashAbility = new BlackFlashAbility(this, blackFlashAxeKey);
         this.reverseCursedTechniqueAbility = new ReverseCursedTechniqueAbility(this, reverseTechniqueItemKey);
         this.blackCoffinAbility = new BlackCoffinAbility(this, hadoItemKey);
+        this.bankaiAbility = new BankaiAbility(this, bankaiItemKey);
         getServer().getPluginManager().registerEvents(new BlackFlashListener(blackFlashAbility), this);
         getServer().getPluginManager().registerEvents(new ReverseCursedTechniqueListener(reverseCursedTechniqueAbility), this);
         getServer().getPluginManager().registerEvents(new BlackCoffinListener(blackCoffinAbility), this);
+        getServer().getPluginManager().registerEvents(new BankaiListener(bankaiAbility), this);
         registerCommands();
         getLogger().info("Black Flash and Reverse Cursed Technique abilities loaded.");
     }
@@ -39,6 +44,9 @@ public class BlackFlashPlugin extends JavaPlugin {
         }
         if (blackCoffinAbility != null) {
             blackCoffinAbility.clearAll();
+        }
+        if (bankaiAbility != null) {
+            bankaiAbility.clearAll();
         }
         getLogger().info("Black Flash abilities disabled.");
     }
@@ -63,6 +71,20 @@ public class BlackFlashPlugin extends JavaPlugin {
             hadoCommand.setExecutor(new GiveHado90Command(blackCoffinAbility));
         } else {
             getLogger().warning("Failed to register /givehado90 command.");
+        }
+
+        PluginCommand bankaiCommand = getCommand("givebankai");
+        if (bankaiCommand != null) {
+            bankaiCommand.setExecutor(new GiveBankaiCommand(bankaiAbility));
+        } else {
+            getLogger().warning("Failed to register /givebankai command.");
+        }
+
+        PluginCommand bankaiResetCommand = getCommand("bankaireset");
+        if (bankaiResetCommand != null) {
+            bankaiResetCommand.setExecutor(new BankaiResetCommand(bankaiAbility));
+        } else {
+            getLogger().warning("Failed to register /bankaireset command.");
         }
     }
 }
