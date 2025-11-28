@@ -1,0 +1,20 @@
+name: BankaiPlugin
+main: com.example.blackflash.BlackFlashPlugin
+version: 1.0.0
+api-version: "1.20"
+commands:
+  blackflash:
+    description: Trigger Black Flash
+    usage: /blackflash
+  giverct:
+    description: Give Reverse Cursed Technique item
+    usage: /giverct
+  givehado90:
+    description: Give Hado 90 item
+    usage: /givehado90
+  givebankai:
+    description: Give the Bankai activation item
+    usage: /givebankai
+  bankaireset:
+    description: Reset Bankai for the executing player
+    usage: /bankaireset
