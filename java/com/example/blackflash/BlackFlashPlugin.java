@@ -10,7 +10,7 @@ public class BlackFlashPlugin extends JavaPlugin {
     private BlackFlashAbility blackFlashAbility;
     private ReverseCursedTechniqueAbility reverseCursedTechniqueAbility;
     private BlackCoffinAbility blackCoffinAbility;
-    private BankaiAbility bankaiAbility;
+    private AdvancedBankaiAbility bankaiAbility;
     private NamespacedKey blackFlashAxeKey;
     private NamespacedKey reverseTechniqueItemKey;
     private NamespacedKey hadoItemKey;
@@ -21,16 +21,16 @@ public class BlackFlashPlugin extends JavaPlugin {
         this.blackFlashAxeKey = new NamespacedKey(this, "blackflash_axe");
         this.reverseTechniqueItemKey = new NamespacedKey(this, "rct_item");
         this.hadoItemKey = new NamespacedKey(this, "hado_item");
-        this.bankaiItemKey = new NamespacedKey("myplugin", "bankai_item");
+        this.bankaiItemKey = new NamespacedKey(this, "bankai_item");
 
         this.blackFlashAbility = new BlackFlashAbility(this, blackFlashAxeKey);
         this.reverseCursedTechniqueAbility = new ReverseCursedTechniqueAbility(this, reverseTechniqueItemKey);
         this.blackCoffinAbility = new BlackCoffinAbility(this, hadoItemKey);
-        this.bankaiAbility = new BankaiAbility(this, bankaiItemKey);
+        this.bankaiAbility = new AdvancedBankaiAbility(this, bankaiItemKey);
         getServer().getPluginManager().registerEvents(new BlackFlashListener(blackFlashAbility), this);
         getServer().getPluginManager().registerEvents(new ReverseCursedTechniqueListener(reverseCursedTechniqueAbility), this);
         getServer().getPluginManager().registerEvents(new BlackCoffinListener(blackCoffinAbility), this);
-        getServer().getPluginManager().registerEvents(new BankaiListener(bankaiAbility), this);
+        getServer().getPluginManager().registerEvents(new AdvancedBankaiListener(bankaiAbility), this);
         registerCommands();
         getLogger().info("Black Flash and Reverse Cursed Technique abilities loaded.");
     }
@@ -75,14 +75,14 @@ public class BlackFlashPlugin extends JavaPlugin {
 
         PluginCommand bankaiCommand = getCommand("givebankai");
         if (bankaiCommand != null) {
-            bankaiCommand.setExecutor(new GiveBankaiCommand(bankaiAbility));
+            bankaiCommand.setExecutor(new GiveTensaZangetsuCommand(bankaiAbility));
         } else {
             getLogger().warning("Failed to register /givebankai command.");
         }
 
         PluginCommand bankaiResetCommand = getCommand("bankaireset");
         if (bankaiResetCommand != null) {
-            bankaiResetCommand.setExecutor(new BankaiResetCommand(bankaiAbility));
+            bankaiResetCommand.setExecutor(new BankaiResetDebugCommand(bankaiAbility));
         } else {
             getLogger().warning("Failed to register /bankaireset command.");
         }
