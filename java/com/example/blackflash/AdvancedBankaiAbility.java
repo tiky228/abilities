@@ -43,18 +43,22 @@ public class AdvancedBankaiAbility {
     private static final int GETSUGA_COST_SECONDS = 10;
     private static final int GETSUGA_COOLDOWN_SECONDS = 15;
     private static final int DASH_COOLDOWN_SECONDS = 9;
-    private static final int DASH_COST_SECONDS = 5;
     private static final double GETSUGA_RANGE = 15.0;
-    private static final double SLASH_RADIUS = 0.9;
-    private static final double TENSHOU_RADIUS = 2.6;
-    private static final double SLASH_DAMAGE = 8.0;
-    private static final double TENSHOU_DAMAGE = 14.0;
+    private static final double SLASH_RADIUS = 1.2;
+    private static final double TENSHOU_RADIUS = 3.4;
+    private static final double SLASH_DAMAGE = 12.0;
+    private static final double TENSHOU_DAMAGE = 22.0;
     private static final double DASH_DISTANCE = 5.0;
     private static final double DASH_IMPACT_DAMAGE = 10.0;
     private static final double DASH_IMPACT_RADIUS = 2.0;
+    private static final int REATSU_COOLDOWN_SECONDS = 25;
+    private static final int STAND_COOLDOWN_SECONDS = 45;
+    private static final double REATSU_RADIUS = 10.0;
 
     private final BlackFlashPlugin plugin;
     private final NamespacedKey bankaiItemKey;
+    private final NamespacedKey reatsuItemKey;
+    private final NamespacedKey standItemKey;
     private final AbilityRestrictionManager restrictionManager;
     private final Map<UUID, BankaiData> states = new HashMap<>();
 
@@ -62,6 +66,8 @@ public class AdvancedBankaiAbility {
             AbilityRestrictionManager restrictionManager) {
         this.plugin = plugin;
         this.bankaiItemKey = bankaiItemKey;
+        this.reatsuItemKey = new NamespacedKey(plugin, "reatsu_burst_item");
+        this.standItemKey = new NamespacedKey(plugin, "stand_cutscene_item");
         this.restrictionManager = restrictionManager;
     }
 
@@ -81,8 +87,67 @@ public class AdvancedBankaiAbility {
         return sword;
     }
 
+    private ItemStack createReatsuItem() {
+        ItemStack orb = new ItemStack(Material.BLAZE_POWDER);
+        ItemMeta meta = orb.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("§cReatsu Burst");
+            List<String> lore = new ArrayList<>();
+            lore.add("§7Unleash a paralyzing spiritual burst.");
+            meta.setLore(lore);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            meta.getPersistentDataContainer().set(reatsuItemKey, PersistentDataType.BYTE, (byte) 1);
+            orb.setItemMeta(meta);
+        }
+        return orb;
+    }
+
+    private ItemStack createStandItem() {
+        ItemStack gem = new ItemStack(Material.NETHER_STAR);
+        ItemMeta meta = gem.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("§4I need to stand.");
+            List<String> lore = new ArrayList<>();
+            lore.add("§7Brace yourself and rise again.");
+            meta.setLore(lore);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            meta.getPersistentDataContainer().set(standItemKey, PersistentDataType.BYTE, (byte) 1);
+            gem.setItemMeta(meta);
+        }
+        return gem;
+    }
+
     public boolean canUseAbility(Player player) {
         return restrictionManager.canUseAbility(player);
+    }
+
+    public boolean isImmobilized(Player player) {
+        BankaiData data = states.get(player.getUniqueId());
+        return data != null && (data.reatsuLockedPlayers.contains(player.getUniqueId()) || data.standChanneling);
+    }
+
+    public boolean isReatsuItem(ItemStack itemStack) {
+        if (itemStack == null) {
+            return false;
+        }
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) {
+            return false;
+        }
+        Byte marker = meta.getPersistentDataContainer().get(reatsuItemKey, PersistentDataType.BYTE);
+        return marker != null && marker == (byte) 1;
+    }
+
+    public boolean isStandItem(ItemStack itemStack) {
+        if (itemStack == null) {
+            return false;
+        }
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) {
+            return false;
+        }
+        Byte marker = meta.getPersistentDataContainer().get(standItemKey, PersistentDataType.BYTE);
+        return marker != null && marker == (byte) 1;
     }
 
     public boolean isBankaiItem(ItemStack itemStack) {
@@ -110,7 +175,7 @@ public class AdvancedBankaiAbility {
             return;
         }
 
-        if (data.transforming) {
+        if (data.transforming || data.standChanneling) {
             return;
         }
         if (player.isSneaking()) {
@@ -118,6 +183,35 @@ public class AdvancedBankaiAbility {
         } else {
             attemptGetsuga(player, data);
         }
+    }
+
+    public void handleReatsu(Player player) {
+        BankaiData data = states.get(player.getUniqueId());
+        if (data == null || !data.active || data.transforming || data.standChanneling) {
+            return;
+        }
+        long now = Instant.now().toEpochMilli();
+        if (data.reatsuCooldownEnd > now) {
+            long remaining = (data.reatsuCooldownEnd - now + 999) / 1000;
+            player.sendActionBar(Component.text("Reatsu Burst cooling down: " + remaining + "s",
+                    NamedTextColor.YELLOW));
+            return;
+        }
+        startReatsuBurst(player, data);
+    }
+
+    public void handleStand(Player player) {
+        BankaiData data = states.get(player.getUniqueId());
+        if (data == null || !data.active || data.transforming || data.standChanneling) {
+            return;
+        }
+        long now = Instant.now().toEpochMilli();
+        if (data.standCooldownEnd > now) {
+            long remaining = (data.standCooldownEnd - now + 999) / 1000;
+            player.sendActionBar(Component.text("Ability cooling down: " + remaining + "s", NamedTextColor.YELLOW));
+            return;
+        }
+        beginStandCutscene(player, data);
     }
 
     private void attemptDash(Player player, BankaiData data) {
@@ -130,13 +224,7 @@ public class AdvancedBankaiAbility {
             player.sendActionBar(Component.text("Dash cooling down: " + remaining + "s", NamedTextColor.YELLOW));
             return;
         }
-        if (data.remainingSeconds <= DASH_COST_SECONDS) {
-            player.sendActionBar(Component.text("Not enough Bankai time!", NamedTextColor.RED));
-            return;
-        }
 
-        data.remainingSeconds -= DASH_COST_SECONDS;
-        sendTimerBar(player, data.remainingSeconds);
         data.dashCooldownEnd = now + DASH_COOLDOWN_SECONDS * 1000L;
 
         Location start = player.getLocation();
@@ -163,7 +251,171 @@ public class AdvancedBankaiAbility {
         player.setVelocity(direction.clone().multiply(0.6).setY(0.0));
         player.getWorld().playSound(lastSafe, Sound.ENTITY_ENDER_DRAGON_FLAP, 0.7f, 1.2f);
 
-        applyDashImpact(player, lastSafe, direction);
+        boolean hit = applyDashImpact(player, lastSafe, direction);
+        if (hit) {
+            data.remainingSeconds += 5;
+            sendTimerBar(player, data.remainingSeconds);
+        }
+    }
+
+    private void startReatsuBurst(Player player, BankaiData data) {
+        long now = Instant.now().toEpochMilli();
+        data.reatsuCooldownEnd = now + REATSU_COOLDOWN_SECONDS * 1000L;
+        Location center = player.getLocation();
+        World world = center.getWorld();
+        if (world == null) {
+            return;
+        }
+        Particle.DustOptions ring = new Particle.DustOptions(Color.fromRGB(200, 20, 20), 1.3f);
+        for (double angle = 0; angle < Math.PI * 2; angle += Math.PI / 16) {
+            double x = Math.cos(angle) * REATSU_RADIUS;
+            double z = Math.sin(angle) * REATSU_RADIUS;
+            Location edge = center.clone().add(x, 0.1, z);
+            world.spawnParticle(Particle.REDSTONE, edge, 4, 0.2, 0.05, 0.2, ring);
+        }
+        world.playSound(center, Sound.ENTITY_WITHER_SPAWN, 0.8f, 0.9f);
+
+        BukkitTask delay = new BukkitRunnable() {
+            @Override
+            public void run() {
+                applyReatsuEffects(player, center.clone(), data);
+            }
+        }.runTaskLater(plugin, 20L);
+        data.reatsuTasks.add(delay);
+    }
+
+    private void applyReatsuEffects(Player player, Location center, BankaiData data) {
+        World world = center.getWorld();
+        if (world == null) {
+            return;
+        }
+        double radiusSquared = REATSU_RADIUS * REATSU_RADIUS;
+        Set<UUID> affected = new HashSet<>();
+        for (LivingEntity entity : world.getLivingEntities()) {
+            if (entity.equals(player)) {
+                continue;
+            }
+            if (entity.getLocation().getWorld() != world) {
+                continue;
+            }
+            if (entity.getLocation().distanceSquared(center) > radiusSquared) {
+                continue;
+            }
+            affected.add(entity.getUniqueId());
+            entity.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 80, 6, false, false, true));
+            entity.addPotionEffect(new PotionEffect(PotionEffectType.JUMP, 80, 250, false, false, true));
+            entity.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 80, 1, false, false, true));
+            if (entity instanceof Player targetPlayer) {
+                data.reatsuLockedPlayers.add(targetPlayer.getUniqueId());
+            }
+        }
+
+        BukkitTask damageTask = new BukkitRunnable() {
+            int ticks = 0;
+
+            @Override
+            public void run() {
+                if (ticks >= 80) {
+                    releaseReatsuTargets(center, affected, data);
+                    cancel();
+                    return;
+                }
+                ticks += 10;
+                for (UUID uuid : affected) {
+                    LivingEntity entity = (LivingEntity) Bukkit.getEntity(uuid);
+                    if (entity == null || entity.isDead()) {
+                        continue;
+                    }
+                    if (entity.getLocation().getWorld() != world) {
+                        continue;
+                    }
+                    if (entity.getLocation().distanceSquared(center) > radiusSquared) {
+                        continue;
+                    }
+                    entity.damage(2.0, player);
+                    world.spawnParticle(Particle.REDSTONE, entity.getLocation().clone().add(0, 1.0, 0), 18, 0.5, 0.8, 0.5,
+                            new Particle.DustOptions(Color.fromRGB(220, 20, 20), 1.4f));
+                    world.spawnParticle(Particle.CRIT_MAGIC, entity.getLocation().clone().add(0, 1.2, 0), 10, 0.3, 0.4, 0.3,
+                            0.1);
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 10L);
+        data.reatsuTasks.add(damageTask);
+    }
+
+    private void releaseReatsuTargets(Location center, Set<UUID> affected, BankaiData data) {
+        World world = center.getWorld();
+        if (world == null) {
+            return;
+        }
+        for (UUID uuid : affected) {
+            LivingEntity entity = (LivingEntity) Bukkit.getEntity(uuid);
+            if (entity == null) {
+                continue;
+            }
+            entity.removePotionEffect(PotionEffectType.SLOW);
+            entity.removePotionEffect(PotionEffectType.JUMP);
+            entity.removePotionEffect(PotionEffectType.NAUSEA);
+            Vector knockback = entity.getLocation().toVector().subtract(center.toVector()).normalize().multiply(1.2);
+            knockback.setY(0.55);
+            if (!Double.isNaN(knockback.length())) {
+                entity.setVelocity(knockback);
+            }
+            entity.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 100, 0, false, false, true));
+            if (entity instanceof Player targetPlayer) {
+                data.reatsuLockedPlayers.remove(targetPlayer.getUniqueId());
+            }
+        }
+        world.spawnParticle(Particle.EXPLOSION_LARGE, center, 3, 0.5, 0.5, 0.5, 0.0);
+        Particle.DustOptions burst = new Particle.DustOptions(Color.fromRGB(255, 40, 40), 1.6f);
+        world.spawnParticle(Particle.REDSTONE, center, 120, 2.0, 0.8, 2.0, burst);
+        world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 0.8f, 0.9f);
+    }
+
+    private void beginStandCutscene(Player player, BankaiData data) {
+        long now = Instant.now().toEpochMilli();
+        data.standCooldownEnd = now + STAND_COOLDOWN_SECONDS * 1000L;
+        data.standChanneling = true;
+        AttributeInstance maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+        if (maxHealth != null) {
+            data.standPreviousMaxHealth = maxHealth.getBaseValue();
+            maxHealth.setBaseValue(data.standPreviousMaxHealth + 20.0);
+            player.setHealth(maxHealth.getBaseValue());
+        }
+        player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 100, 9, false, false, true));
+        player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 100, 1, false, false, true));
+        player.addPotionEffect(new PotionEffect(PotionEffectType.DAMAGE_RESISTANCE, 100, 99, false, false, true));
+        player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 100, 9, false, false, true));
+        player.sendActionBar(Component.text("Steeling yourself...", NamedTextColor.RED));
+
+        BukkitTask standTask = new BukkitRunnable() {
+            @Override
+            public void run() {
+                finishStandCutscene(player, data);
+            }
+        }.runTaskLater(plugin, 100L);
+        data.standTasks.add(standTask);
+    }
+
+    private void finishStandCutscene(Player player, BankaiData data) {
+        if (!player.isOnline()) {
+            return;
+        }
+        data.standChanneling = false;
+        player.removePotionEffect(PotionEffectType.SLOW);
+        player.removePotionEffect(PotionEffectType.BLINDNESS);
+        player.removePotionEffect(PotionEffectType.DAMAGE_RESISTANCE);
+        AttributeInstance maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+        if (maxHealth != null && data.standPreviousMaxHealth > 0) {
+            maxHealth.setBaseValue(data.standPreviousMaxHealth);
+            if (player.getHealth() > maxHealth.getBaseValue()) {
+                player.setHealth(maxHealth.getBaseValue());
+            }
+        }
+        player.addPotionEffect(new PotionEffect(PotionEffectType.INCREASE_DAMAGE, 240, 0, false, false, true));
+        data.remainingSeconds = 15;
+        data.timerLocked = true;
+        sendTimerBar(player, data.remainingSeconds);
     }
 
     private boolean isPassable(Location location) {
@@ -188,16 +440,16 @@ public class AdvancedBankaiAbility {
         }
     }
 
-    private void applyDashImpact(Player player, Location center, Vector direction) {
+    private boolean applyDashImpact(Player player, Location center, Vector direction) {
         World world = center.getWorld();
         if (world == null) {
-            return;
+            return false;
         }
         world.spawnParticle(Particle.EXPLOSION_NORMAL, center, 12, 0.6, 0.4, 0.6, 0.05);
         Particle.DustOptions red = new Particle.DustOptions(Color.fromRGB(255, 30, 30), 1.6f);
         world.spawnParticle(Particle.REDSTONE, center.clone().add(0, 1, 0), 40, 0.8, 0.8, 0.8, red);
         world.playSound(center, Sound.ENTITY_WITHER_HURT, 0.6f, 1.2f);
-
+        boolean hit = false;
         double radiusSquared = DASH_IMPACT_RADIUS * DASH_IMPACT_RADIUS;
         for (LivingEntity entity : world.getLivingEntities()) {
             if (entity.equals(player)) {
@@ -216,7 +468,9 @@ public class AdvancedBankaiAbility {
                 knockback = direction.clone().multiply(0.9).setY(0.35);
             }
             entity.setVelocity(knockback);
+            hit = true;
         }
+        return hit;
     }
 
     public void reset(Player player) {
@@ -272,6 +526,9 @@ public class AdvancedBankaiAbility {
         data.combo = 0;
         data.cooldownEnd = 0L;
         data.dashCooldownEnd = 0L;
+        data.reatsuCooldownEnd = 0L;
+        data.standCooldownEnd = 0L;
+        data.timerLocked = false;
 
         AttributeInstance maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
         if (maxHealth != null) {
@@ -315,6 +572,7 @@ public class AdvancedBankaiAbility {
         }.runTaskTimer(plugin, 20L, 20L);
 
         sendTimerBar(player, data.remainingSeconds);
+        giveAdditionalItems(player);
     }
 
     private void attemptGetsuga(Player player, BankaiData data) {
@@ -324,16 +582,18 @@ public class AdvancedBankaiAbility {
             player.sendActionBar(Component.text("Getsuga cooling down: " + remaining + "s", NamedTextColor.YELLOW));
             return;
         }
-        if (data.remainingSeconds <= GETSUGA_COST_SECONDS) {
+        if (!data.timerLocked && data.remainingSeconds <= GETSUGA_COST_SECONDS) {
             player.sendActionBar(Component.text("Not enough Bankai time!", NamedTextColor.RED));
             return;
         }
 
-        data.remainingSeconds -= GETSUGA_COST_SECONDS;
-        if (data.remainingSeconds < 0) {
-            data.remainingSeconds = 0;
+        if (!data.timerLocked) {
+            data.remainingSeconds -= GETSUGA_COST_SECONDS;
+            if (data.remainingSeconds < 0) {
+                data.remainingSeconds = 0;
+            }
+            sendTimerBar(player, data.remainingSeconds);
         }
-        sendTimerBar(player, data.remainingSeconds);
         data.cooldownEnd = now + GETSUGA_COOLDOWN_SECONDS * 1000L;
 
         data.combo++;
@@ -370,7 +630,7 @@ public class AdvancedBankaiAbility {
             Vector offset = dir.clone().multiply(i);
             Location point = origin.clone().add(offset);
             spawnSlashParticles(world, point, dir, false);
-            damageCone(player, point, dir, SLASH_RADIUS, 1.2, SLASH_DAMAGE, 1.0, hit);
+            damageCone(player, point, dir, SLASH_RADIUS, 1.6, SLASH_DAMAGE, 1.0, -2.0, hit);
         }
     }
 
@@ -387,11 +647,12 @@ public class AdvancedBankaiAbility {
             Vector offset = dir.clone().multiply(i);
             Location point = origin.clone().add(offset);
             spawnSlashParticles(world, point, dir, true);
-            damageCone(player, point, dir, TENSHOU_RADIUS, 5.0, TENSHOU_DAMAGE, 1.7, hit);
+            damageCone(player, point, dir, TENSHOU_RADIUS, 6.5, TENSHOU_DAMAGE, 1.9, -2.5, hit);
         }
     }
 
-    private void damageCone(Player player, Location point, Vector direction, double radius, double height, double damage, double knockbackStrength, Set<LivingEntity> hit) {
+    private void damageCone(Player player, Location point, Vector direction, double radius, double height, double damage,
+            double knockbackStrength, double lowerBound, Set<LivingEntity> hit) {
         World world = point.getWorld();
         for (LivingEntity entity : world.getLivingEntities()) {
             if (entity.equals(player)) {
@@ -402,7 +663,7 @@ public class AdvancedBankaiAbility {
                 continue;
             }
             double dy = entityLoc.getY() - point.getY();
-            if (dy < -1.0 || dy > height) {
+            if (dy < lowerBound || dy > height) {
                 continue;
             }
             double distanceSquared = entityLoc.toVector().setY(0).distanceSquared(point.toVector().setY(0));
@@ -428,11 +689,11 @@ public class AdvancedBankaiAbility {
         Particle.DustOptions black = new Particle.DustOptions(Color.fromRGB(10, 10, 10), tenshou ? 1.6f : 1.2f);
 
         Vector side = new Vector(-dir.getZ(), 0, dir.getX()).normalize();
-        double height = tenshou ? 5.0 : 2.0;
-        double width = tenshou ? 2.5 : 0.9;
+        double height = tenshou ? 6.5 : 2.4;
+        double width = tenshou ? 3.3 : 1.2;
 
-        for (double y = -0.5; y <= height; y += 0.8) {
-            double scale = tenshou ? 1.2 - (y / (height + 0.5)) * 0.3 : 1.0;
+        for (double y = -0.8; y <= height; y += 0.7) {
+            double scale = tenshou ? 1.2 - (y / (height + 0.8)) * 0.35 : 1.0;
             for (double s = -width; s <= width; s += 0.6) {
                 Location draw = point.clone().add(side.clone().multiply(s * scale)).add(0, y * 0.5, 0);
                 world.spawnParticle(Particle.REDSTONE, draw, 2, 0.2, 0.2, 0.2, red);
@@ -443,6 +704,12 @@ public class AdvancedBankaiAbility {
             }
         }
         if (tenshou) {
+            for (double y = 0.5; y <= 3.0; y += 0.5) {
+                Location streakCenter = point.clone().add(0, y, 0);
+                world.spawnParticle(Particle.REDSTONE, streakCenter, 10, 0.4, 0.6, 0.4, red);
+                world.spawnParticle(Particle.REDSTONE, streakCenter, 8, 0.3, 0.5, 0.3, black);
+                world.spawnParticle(Particle.CRIT_MAGIC, streakCenter, 6, 0.2, 0.4, 0.2, 0.01);
+            }
             world.playSound(point, Sound.ENTITY_ENDER_DRAGON_GROWL, 0.7f, 0.6f);
         } else {
             world.playSound(point, Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, 0.4f, 1.2f);
@@ -451,6 +718,31 @@ public class AdvancedBankaiAbility {
 
     private void sendTimerBar(Player player, int remainingSeconds) {
         player.sendActionBar(Component.text("Bankai time left: " + remainingSeconds + "s", NamedTextColor.RED));
+    }
+
+    private void giveAdditionalItems(Player player) {
+        player.getInventory().addItem(createReatsuItem());
+        player.getInventory().addItem(createStandItem());
+    }
+
+    private void removeSpecialItems(Player player) {
+        ItemStack[] contents = player.getInventory().getContents();
+        for (int i = 0; i < contents.length; i++) {
+            ItemStack stack = contents[i];
+            if (stack == null) {
+                continue;
+            }
+            ItemMeta meta = stack.getItemMeta();
+            if (meta == null) {
+                continue;
+            }
+            PersistentDataContainer container = meta.getPersistentDataContainer();
+            if (container.has(reatsuItemKey, PersistentDataType.BYTE)
+                    || container.has(standItemKey, PersistentDataType.BYTE)) {
+                contents[i] = null;
+            }
+        }
+        player.getInventory().setContents(contents);
     }
 
     private BukkitTask createBeamTask(Player player) {
@@ -526,6 +818,13 @@ public class AdvancedBankaiAbility {
         player.removePotionEffect(PotionEffectType.SPEED);
         player.removePotionEffect(PotionEffectType.NIGHT_VISION);
         player.removePotionEffect(PotionEffectType.SLOW);
+        player.removePotionEffect(PotionEffectType.BLINDNESS);
+        player.removePotionEffect(PotionEffectType.RESISTANCE);
+        player.removePotionEffect(PotionEffectType.DAMAGE_RESISTANCE);
+        player.removePotionEffect(PotionEffectType.NAUSEA);
+        player.removePotionEffect(PotionEffectType.REGENERATION);
+        player.removePotionEffect(PotionEffectType.INCREASE_DAMAGE);
+        player.removePotionEffect(PotionEffectType.JUMP);
 
         AttributeInstance maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
         if (maxHealth != null && data.originalMaxHealth > 0) {
@@ -534,6 +833,17 @@ public class AdvancedBankaiAbility {
                 player.setHealth(maxHealth.getBaseValue());
             }
         }
+        removeSpecialItems(player);
+        for (UUID locked : new HashSet<>(data.reatsuLockedPlayers)) {
+            Player target = Bukkit.getPlayer(locked);
+            if (target != null) {
+                target.removePotionEffect(PotionEffectType.SLOW);
+                target.removePotionEffect(PotionEffectType.JUMP);
+                target.removePotionEffect(PotionEffectType.NAUSEA);
+                target.removePotionEffect(PotionEffectType.BLINDNESS);
+            }
+        }
+        data.reatsuLockedPlayers.clear();
         data.active = false;
         data.transforming = false;
         data.combo = 0;
@@ -551,10 +861,18 @@ public class AdvancedBankaiAbility {
         private int combo;
         private long cooldownEnd;
         private long dashCooldownEnd;
+        private long reatsuCooldownEnd;
+        private long standCooldownEnd;
+        private boolean timerLocked;
+        private boolean standChanneling;
+        private double standPreviousMaxHealth;
         private BukkitTask particleTask;
         private BukkitTask timerTask;
         private BukkitTask beamTask;
+        private final List<BukkitTask> reatsuTasks = new ArrayList<>();
+        private final List<BukkitTask> standTasks = new ArrayList<>();
         private final List<BukkitTask> phaseTasks = new ArrayList<>();
+        private final Set<UUID> reatsuLockedPlayers = new HashSet<>();
 
         private void cancelAll() {
             if (particleTask != null) {
@@ -569,6 +887,13 @@ public class AdvancedBankaiAbility {
             for (BukkitTask task : phaseTasks) {
                 task.cancel();
             }
+            for (BukkitTask task : reatsuTasks) {
+                task.cancel();
+            }
+            for (BukkitTask task : standTasks) {
+                task.cancel();
+            }
+            standChanneling = false;
         }
     }
 }
