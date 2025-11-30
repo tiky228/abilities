@@ -155,7 +155,7 @@ public class ReverseRedAbility {
                     cancel();
                     cleanup(id, handle[0]);
                     if (enhanced && !hitTarget) {
-                        startHoming(player, current.clone());
+                        tryStartHoming(player, current.clone());
                     }
                     return;
                 }
@@ -169,7 +169,7 @@ public class ReverseRedAbility {
                     cancel();
                     cleanup(id, handle[0]);
                     if (enhanced && !hitTarget) {
-                        startHoming(player, current.clone());
+                        tryStartHoming(player, current.clone());
                     }
                 }
             }
@@ -178,7 +178,7 @@ public class ReverseRedAbility {
         trackTask(id, handle[0]);
     }
 
-    private void startHoming(Player player, Location current) {
+    private void tryStartHoming(Player player, Location current) {
         UUID id = player.getUniqueId();
         LivingEntity target = findNearestTarget(player, current);
         if (target == null) {
@@ -188,6 +188,11 @@ public class ReverseRedAbility {
             return;
         }
 
+        startHoming(player, current, target);
+    }
+
+    private void startHoming(Player player, Location current, LivingEntity target) {
+        UUID id = player.getUniqueId();
         BukkitTask[] handle = new BukkitTask[1];
         BukkitRunnable runnable = new BukkitRunnable() {
             int ticks = 0;

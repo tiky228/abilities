@@ -13,6 +13,8 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -33,7 +35,7 @@ public class LapseBlueAbility {
     private static final double SPHERE_RADIUS = 2.25;
     private static final double ATTRACTION_RADIUS = 7.5;
     private static final double PULL_STRENGTH = 0.45;
-    private static final double DAMAGE_PER_TICK = 3.0;
+    private static final double DAMAGE_PER_TICK = 1.0;
     private static final int HOLLOW_PURPLE_DURATION_TICKS = 70; // 3.5 seconds
     private static final double HOLLOW_PURPLE_RADIUS = SPHERE_RADIUS * 2.6;
     private static final double HOLLOW_PURPLE_PULL_STRENGTH = 1.2;
@@ -351,11 +353,45 @@ public class LapseBlueAbility {
             push.setY(Math.max(0.8, push.getY() + 0.2));
             entity.setVelocity(entity.getVelocity().multiply(0.3).add(push));
         }
+        carveCrater(center);
         center.getWorld().spawnParticle(Particle.END_ROD, center, 60, HOLLOW_PURPLE_RADIUS, HOLLOW_PURPLE_RADIUS,
                 HOLLOW_PURPLE_RADIUS, 0.12);
         center.getWorld().spawnParticle(Particle.SONIC_BOOM, center, 8, HOLLOW_PURPLE_RADIUS * 0.4,
                 HOLLOW_PURPLE_RADIUS * 0.4, HOLLOW_PURPLE_RADIUS * 0.4, 0.05);
         center.getWorld().playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 1.4f, 0.6f);
+    }
+
+    private void carveCrater(Location center) {
+        World world = center.getWorld();
+        if (world == null) {
+            return;
+        }
+        int radius = 8;
+        int centerX = center.getBlockX();
+        int centerY = center.getBlockY();
+        int centerZ = center.getBlockZ();
+        int minY = Math.max(world.getMinHeight(), centerY - radius);
+        int maxY = Math.min(world.getMaxHeight(), centerY + 2);
+
+        for (int x = centerX - radius; x <= centerX + radius; x++) {
+            for (int z = centerZ - radius; z <= centerZ + radius; z++) {
+                double horizontalDistance = Math.hypot(x - centerX, z - centerZ);
+                if (horizontalDistance > radius) {
+                    continue;
+                }
+                int depth = (int) Math.round((radius - horizontalDistance) * 0.75) + 3;
+                int lowestY = Math.max(minY, centerY - depth);
+                for (int y = maxY; y >= lowestY; y--) {
+                    Block block = world.getBlockAt(x, y, z);
+                    if (block.getType() == Material.BEDROCK) {
+                        continue;
+                    }
+                    if (block.getType().isSolid()) {
+                        block.setType(Material.AIR);
+                    }
+                }
+            }
+        }
     }
 
     public void clearAll() {
