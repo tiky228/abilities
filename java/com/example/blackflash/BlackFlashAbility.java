@@ -170,6 +170,10 @@ public class BlackFlashAbility {
         applyPositiveEffects(player);
         spawnBlackFlashEffects(player, target);
 
+        if (attempt.awakening && gojoAwakeningAbility != null) {
+            gojoAwakeningAbility.addAbilityPoint(player);
+        }
+
         player.sendMessage(ChatColor.DARK_RED + "Black Flash connects!" + ChatColor.GRAY + " Cooldown: "
                 + cooldownSeconds + "s");
         if (target instanceof Player otherPlayer) {
