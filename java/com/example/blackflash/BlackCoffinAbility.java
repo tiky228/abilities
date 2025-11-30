@@ -175,7 +175,7 @@ public class BlackCoffinAbility {
         Particle.DustOptions darkDust = new Particle.DustOptions(Color.fromRGB(15, 5, 25), 1.6f);
 
         BukkitTask[] handle = new BukkitTask[1];
-        BukkitTask task = new BukkitRunnable() {
+        handle[0] = new BukkitRunnable() {
             private int layer = 0;
             private int holdTicks = 0;
 
@@ -200,8 +200,7 @@ public class BlackCoffinAbility {
                 shatter(caster, center, targets);
             }
         }.runTaskTimer(plugin, 0L, CONSTRUCTION_INTERVAL_TICKS);
-        handle[0] = task;
-        runningTasks.add(task);
+        runningTasks.add(handle[0]);
     }
 
     private void drawCoffin(World world, Location center, int currentHeight, Particle.DustOptions purple,

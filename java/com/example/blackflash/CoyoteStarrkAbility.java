@@ -574,7 +574,7 @@ public class CoyoteStarrkAbility {
             }
             int delay = ThreadLocalRandom.current().nextInt(6, 20);
             BukkitTask[] dashHolder = new BukkitTask[1];
-            BukkitTask dashTask = new BukkitRunnable() {
+            dashHolder[0] = new BukkitRunnable() {
                 int ticks = 0;
                 LivingEntity target = findStormTarget(player, wolf);
 
@@ -615,8 +615,7 @@ public class CoyoteStarrkAbility {
                     }
                 }
             }.runTaskTimer(plugin, delay, 2L);
-            dashHolder[0] = dashTask;
-            tasks.add(dashTask);
+            tasks.add(dashHolder[0]);
         }
 
         BukkitTask monitorTask = new BukkitRunnable() {
