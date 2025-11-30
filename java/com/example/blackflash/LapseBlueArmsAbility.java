@@ -25,8 +25,10 @@ public class LapseBlueArmsAbility {
     private static final int COOLDOWN_SECONDS = 13;
     private static final int COMBO_HITS = 4;
     private static final int TICKS_BETWEEN_HITS = 8;
-    private static final double PUNCH_RANGE = 3.8;
-    private static final double FORWARD_ANGLE_DOT = 0.4;
+    private static final double PUNCH_RANGE = 6.0;
+    private static final double FORWARD_ANGLE_DOT = 0.2;
+    private static final double VERTICAL_TOLERANCE = 1.1;
+    private static final double HORIZONTAL_TOLERANCE = 1.25;
     private static final double PUNCH_DAMAGE = 5.5;
     private static final double PUNCH_KNOCKBACK = 0.55;
     private static final double PULL_STRENGTH = 0.75;
@@ -156,12 +158,19 @@ public class LapseBlueArmsAbility {
             if (!entity.getWorld().equals(player.getWorld())) {
                 continue;
             }
-            double distanceSq = entity.getLocation().distanceSquared(eye);
-            if (distanceSq > closestDistance) {
+            Vector toEntity = entity.getLocation().toVector().subtract(eye.toVector());
+            double forwardDistance = forward.dot(toEntity);
+            if (forwardDistance < 0.0 || forwardDistance > PUNCH_RANGE) {
                 continue;
             }
-            Vector toEntity = entity.getLocation().toVector().subtract(eye.toVector());
-            if (toEntity.lengthSquared() < 1.0e-6) {
+            double distanceSq = toEntity.lengthSquared();
+            if (distanceSq > closestDistance || distanceSq < 1.0e-6) {
+                continue;
+            }
+            Vector perpendicular = toEntity.clone().subtract(forward.clone().multiply(forwardDistance));
+            double verticalOffset = Math.abs(perpendicular.getY());
+            double lateralDistance = Math.hypot(perpendicular.getX(), perpendicular.getZ());
+            if (verticalOffset > VERTICAL_TOLERANCE || lateralDistance > HORIZONTAL_TOLERANCE) {
                 continue;
             }
             if (forward.dot(toEntity.normalize()) < FORWARD_ANGLE_DOT) {

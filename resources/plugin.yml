@@ -24,3 +24,6 @@ commands:
   gojoreset:
     description: Fully reset Gojo Awakening state for the executing player
     usage: /gojoreset
+  givestarrk:
+    description: Give Starrk abilities
+    usage: /givestarrk

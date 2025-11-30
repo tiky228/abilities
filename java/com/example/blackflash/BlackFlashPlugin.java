@@ -16,6 +16,7 @@ public class BlackFlashPlugin extends JavaPlugin {
     private ReverseRedAbility reverseRedAbility;
     private TeleportStrikeAbility teleportStrikeAbility;
     private LapseBlueArmsAbility lapseBlueArmsAbility;
+    private CoyoteStarrkAbility coyoteStarrkAbility;
     private AbilityRestrictionManager abilityRestrictionManager;
     private NamespacedKey blackFlashAxeKey;
     private NamespacedKey reverseTechniqueItemKey;
@@ -26,6 +27,12 @@ public class BlackFlashPlugin extends JavaPlugin {
     private NamespacedKey reverseRedItemKey;
     private NamespacedKey teleportStrikeItemKey;
     private NamespacedKey lapseBlueArmsItemKey;
+    private NamespacedKey starrkPetsItemKey;
+    private NamespacedKey ceroRedItemKey;
+    private NamespacedKey ceroBlueItemKey;
+    private NamespacedKey ceroGreenItemKey;
+    private NamespacedKey ceroCyanItemKey;
+    private NamespacedKey starrkWolfKey;
 
     @Override
     public void onEnable() {
@@ -39,6 +46,12 @@ public class BlackFlashPlugin extends JavaPlugin {
         this.reverseRedItemKey = new NamespacedKey(this, "reverse_red_item");
         this.teleportStrikeItemKey = new NamespacedKey(this, "teleport_strike_item");
         this.lapseBlueArmsItemKey = new NamespacedKey(this, "lapse_blue_arms_item");
+        this.starrkPetsItemKey = new NamespacedKey(this, "starrk_pets_item");
+        this.ceroRedItemKey = new NamespacedKey(this, "cero_red_item");
+        this.ceroBlueItemKey = new NamespacedKey(this, "cero_blue_item");
+        this.ceroGreenItemKey = new NamespacedKey(this, "cero_green_item");
+        this.ceroCyanItemKey = new NamespacedKey(this, "cero_cyan_item");
+        this.starrkWolfKey = new NamespacedKey(this, "starrk_wolf");
 
         this.gojoAwakeningAbility = new GojoAwakeningAbility(this, gojoAwakeningItemKey, abilityRestrictionManager);
         this.blackFlashAbility = new BlackFlashAbility(this, blackFlashAxeKey, abilityRestrictionManager,
@@ -53,6 +66,8 @@ public class BlackFlashPlugin extends JavaPlugin {
                 gojoAwakeningAbility);
         this.lapseBlueArmsAbility = new LapseBlueArmsAbility(this, lapseBlueArmsItemKey, abilityRestrictionManager,
                 gojoAwakeningAbility);
+        this.coyoteStarrkAbility = new CoyoteStarrkAbility(this, abilityRestrictionManager, starrkPetsItemKey,
+                ceroRedItemKey, ceroBlueItemKey, ceroGreenItemKey, ceroCyanItemKey, starrkWolfKey);
         this.gojoAwakeningAbility.setAbilityHooks(blackFlashAbility, reverseCursedTechniqueAbility, lapseBlueAbility,
                 reverseRedAbility, teleportStrikeAbility, lapseBlueArmsAbility);
         this.blackCoffinAbility = new BlackCoffinAbility(this, hadoItemKey, abilityRestrictionManager);
@@ -66,6 +81,7 @@ public class BlackFlashPlugin extends JavaPlugin {
                 new GojoAwakeningListener(gojoAwakeningAbility, abilityRestrictionManager, lapseBlueAbility,
                         reverseRedAbility, teleportStrikeAbility, lapseBlueArmsAbility),
                 this);
+        getServer().getPluginManager().registerEvents(new CoyoteStarrkListener(coyoteStarrkAbility), this);
         registerCommands();
         getLogger().info("Black Flash and Reverse Cursed Technique abilities loaded.");
     }
@@ -97,6 +113,9 @@ public class BlackFlashPlugin extends JavaPlugin {
         }
         if (lapseBlueArmsAbility != null) {
             lapseBlueArmsAbility.clearAll();
+        }
+        if (coyoteStarrkAbility != null) {
+            coyoteStarrkAbility.clearAll();
         }
         if (abilityRestrictionManager != null) {
             abilityRestrictionManager.clearAll();
@@ -154,6 +173,13 @@ public class BlackFlashPlugin extends JavaPlugin {
                     lapseBlueArmsAbility, abilityRestrictionManager));
         } else {
             getLogger().warning("Failed to register /gojoreset command.");
+        }
+
+        PluginCommand starrkCommand = getCommand("givestarrk");
+        if (starrkCommand != null) {
+            starrkCommand.setExecutor(new GiveStarrkCommand(coyoteStarrkAbility));
+        } else {
+            getLogger().warning("Failed to register /givestarrk command.");
         }
     }
 
