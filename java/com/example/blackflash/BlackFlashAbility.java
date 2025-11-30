@@ -275,4 +275,15 @@ public class BlackFlashAbility {
             removeStrength(player);
         }
     }
+
+    public void clearState(Player player) {
+        UUID id = player.getUniqueId();
+        Attempt attempt = activeAttempts.remove(id);
+        if (attempt != null) {
+            attempt.windowTask.cancel();
+        }
+        cooldownManager.clear(id);
+        awakeningDisabled.remove(id);
+        removeStrength(player);
+    }
 }

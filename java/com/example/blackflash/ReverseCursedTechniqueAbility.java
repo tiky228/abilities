@@ -250,6 +250,7 @@ public class ReverseCursedTechniqueAbility {
             state.cancel();
         }
         penaltyUntil.remove(id);
+        cooldownManager.clear(id);
         player.removePotionEffect(PotionEffectType.REGENERATION);
         player.removePotionEffect(PotionEffectType.SLOW);
     }
