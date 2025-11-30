@@ -26,10 +26,10 @@ import org.bukkit.util.Vector;
 public class CeroOscurasAbility {
 
     public enum CeroVariant {
-        RED(ChatColor.DARK_RED + "Cero Oscuras (Red)", Color.fromRGB(170, 20, 20), Color.fromRGB(10, 10, 10)),
-        BLUE(ChatColor.AQUA + "Cero Oscuras (Blue)", Color.fromRGB(40, 120, 235), Color.fromRGB(235, 245, 255)),
-        GREEN(ChatColor.GREEN + "Cero Oscuras (Green)", Color.fromRGB(40, 200, 90), Color.fromRGB(200, 255, 210)),
-        CYAN(ChatColor.DARK_AQUA + "Cero Oscuras (Cyan)", Color.fromRGB(20, 200, 220), Color.fromRGB(235, 255, 255));
+        RED(ChatColor.DARK_RED + "Cero Oscuras (Red)", Color.fromRGB(135, 10, 10), Color.fromRGB(8, 8, 8)),
+        BLUE(ChatColor.AQUA + "Cero Oscuras (Blue)", Color.fromRGB(20, 80, 200), Color.fromRGB(60, 150, 255)),
+        GREEN(ChatColor.GREEN + "Cero Oscuras (Green)", Color.fromRGB(70, 230, 80), Color.fromRGB(170, 255, 170)),
+        CYAN(ChatColor.DARK_AQUA + "Cero Oscuras (Cyan)", Color.fromRGB(30, 215, 240), Color.fromRGB(150, 255, 255));
 
         private final String displayName;
         private final Color primary;
@@ -119,8 +119,8 @@ public class CeroOscurasAbility {
     private void fireBeam(Player player, CeroVariant variant) {
         Location origin = player.getEyeLocation();
         Vector direction = origin.getDirection().normalize();
-        player.getWorld().playSound(origin, Sound.ENTITY_GHAST_SCREAM, 1.4f, 1.35f);
-        player.getWorld().playSound(origin, Sound.BLOCK_BEACON_ACTIVATE, 0.9f, 1.45f);
+        player.getWorld().playSound(origin, Sound.ENTITY_WITHER_SHOOT, 1.35f, 1.35f);
+        player.getWorld().playSound(origin, Sound.ENTITY_GHAST_SHOOT, 0.8f, 1.45f);
         player.sendMessage(ChatColor.GRAY + "Cero Oscuras unleashed!");
 
         CeroBeam beam = new CeroBeam(origin, direction, variant);
@@ -136,12 +136,13 @@ public class CeroOscurasAbility {
                     cancel();
                     return;
                 }
-                spawnBeamParticles(beam, ticks == 0);
+                spawnBeamParticles(beam);
                 if (ticks % DAMAGE_INTERVAL_TICKS == 0) {
                     applyDamage(beam, player);
                 }
-                if (ticks % 8 == 0) {
-                    player.getWorld().playSound(origin, Sound.BLOCK_BEACON_AMBIENT, 0.6f, 1.6f);
+                if (ticks % 6 == 0) {
+                    Location beamCenter = origin.clone().add(direction.clone().multiply(BEAM_LENGTH / 2.0));
+                    player.getWorld().playSound(beamCenter, Sound.BLOCK_BEACON_AMBIENT, 0.35f, 0.9f);
                 }
                 ticks++;
             }
@@ -149,7 +150,7 @@ public class CeroOscurasAbility {
         beam.setTask(task);
     }
 
-    private void spawnBeamParticles(CeroBeam beam, boolean firstTick) {
+    private void spawnBeamParticles(CeroBeam beam) {
         World world = beam.origin.getWorld();
         if (world == null) {
             return;
@@ -168,23 +169,19 @@ public class CeroOscurasAbility {
         double step = 0.7;
         for (double dist = 0; dist <= BEAM_LENGTH; dist += step) {
             Location center = beam.origin.clone().add(dir.clone().multiply(dist));
-            world.spawnParticle(Particle.REDSTONE, center, 5, 0.08, 0.08, 0.08, primary);
-            world.spawnParticle(Particle.SONIC_BOOM, center, firstTick ? 1 : 0, 0.0, 0.0, 0.0, 0.0);
-            for (int i = 0; i < 14; i++) {
-                double angle = (Math.PI * 2 / 14) * i;
+            world.spawnParticle(Particle.REDSTONE, center, 10, 0.12, 0.12, 0.12, primary);
+            for (int i = 0; i < 18; i++) {
+                double angle = (Math.PI * 2 / 18) * i;
                 double cos = Math.cos(angle);
                 double sin = Math.sin(angle);
                 Vector offset = right.clone().multiply(cos * BEAM_RADIUS).add(up.clone().multiply(sin * BEAM_RADIUS));
                 Location edge = center.clone().add(offset);
-                world.spawnParticle(Particle.REDSTONE, edge, 1, 0.03, 0.03, 0.03, secondary);
-                if (i % 3 == 0) {
+                world.spawnParticle(Particle.REDSTONE, edge, 2, 0.04, 0.04, 0.04, secondary);
+                if (i % 2 == 0) {
                     Vector innerOffset = offset.clone().multiply(0.6);
                     Location inner = center.clone().add(innerOffset);
-                    world.spawnParticle(Particle.REDSTONE, inner, 1, 0.02, 0.02, 0.02, primary);
+                    world.spawnParticle(Particle.REDSTONE, inner, 2, 0.025, 0.025, 0.025, primary);
                 }
-            }
-            if (firstTick) {
-                world.spawnParticle(Particle.CLOUD, center, 6, 0.2, 0.2, 0.2, 0.0);
             }
         }
     }
@@ -281,8 +278,8 @@ public class CeroOscurasAbility {
             }
             World world = origin.getWorld();
             if (world != null) {
-                world.playSound(origin, Sound.BLOCK_BEACON_DEACTIVATE, 0.8f, 1.2f);
-                world.playSound(origin, Sound.ENTITY_ENDER_DRAGON_FLAP, 0.4f, 0.6f);
+                world.playSound(origin, Sound.ENTITY_FIREWORK_ROCKET_TWINKLE, 0.7f, 0.65f);
+                world.playSound(origin, Sound.ENTITY_GENERIC_EXTINGUISH_FIRE, 0.8f, 0.75f);
             }
         }
     }

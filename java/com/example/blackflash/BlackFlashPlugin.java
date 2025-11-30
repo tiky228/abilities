@@ -182,13 +182,6 @@ public class BlackFlashPlugin extends JavaPlugin {
             getLogger().warning("Failed to register /gojoreset command.");
         }
 
-        PluginCommand starrkCommand = getCommand("givestarrk");
-        if (starrkCommand != null) {
-            starrkCommand.setExecutor(new GiveStarrkCommand(starrkPetsAbility, ceroOscurasAbility));
-        } else {
-            getLogger().warning("Failed to register /givestarrk command.");
-        }
-
         PluginCommand starrkPetsCommand = getCommand("starrkpets");
         if (starrkPetsCommand != null) {
             starrkPetsCommand.setExecutor(new StarrkPetsCommand(starrkPetsAbility));
