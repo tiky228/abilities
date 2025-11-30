@@ -111,7 +111,7 @@ public class ReverseRedAbility {
         UUID id = player.getUniqueId();
         BukkitTask[] handle = new BukkitTask[1];
         double stepDistance = enhanced ? ENHANCED_STEP_DISTANCE : STEP_DISTANCE;
-        BukkitRunnable runnable = new BukkitRunnable() {
+        BukkitTask task = new BukkitRunnable() {
             int ticks = 0;
 
             @Override
@@ -128,9 +128,9 @@ public class ReverseRedAbility {
                     launchProjectile(player, origin.clone(), direction.clone(), enhanced);
                 }
             }
-        };
-        handle[0] = runnable.runTaskTimer(plugin, 0L, 1L);
-        trackTask(id, handle[0]);
+        }.runTaskTimer(plugin, 0L, 1L);
+        handle[0] = task;
+        trackTask(id, task);
         player.playSound(player.getLocation(), Sound.ITEM_TRIDENT_THUNDER, 0.9f, 1.1f);
     }
 
@@ -139,7 +139,7 @@ public class ReverseRedAbility {
         BukkitTask[] handle = new BukkitTask[1];
         Vector[] adjustedDirection = { direction.normalize() };
         double stepDistance = enhanced ? ENHANCED_STEP_DISTANCE : STEP_DISTANCE;
-        BukkitRunnable runnable = new BukkitRunnable() {
+        BukkitTask task = new BukkitRunnable() {
             int ticks = 0;
             boolean hitTarget = false;
 
@@ -178,9 +178,9 @@ public class ReverseRedAbility {
                     }
                 }
             }
-        };
-        handle[0] = runnable.runTaskTimer(plugin, 1L, 1L);
-        trackTask(id, handle[0]);
+        }.runTaskTimer(plugin, 1L, 1L);
+        handle[0] = task;
+        trackTask(id, task);
     }
 
     private void tryStartHoming(Player player, Location current) {
@@ -200,7 +200,7 @@ public class ReverseRedAbility {
         UUID id = player.getUniqueId();
         BukkitTask[] handle = new BukkitTask[1];
         double stepDistance = ENHANCED_HOMING_STEP_DISTANCE;
-        BukkitRunnable runnable = new BukkitRunnable() {
+        BukkitTask task = new BukkitRunnable() {
             int ticks = 0;
 
             @Override
@@ -231,9 +231,9 @@ public class ReverseRedAbility {
                     cleanup(id, handle[0]);
                 }
             }
-        };
-        handle[0] = runnable.runTaskTimer(plugin, 1L, 1L);
-        trackTask(id, handle[0]);
+        }.runTaskTimer(plugin, 1L, 1L);
+        handle[0] = task;
+        trackTask(id, task);
     }
 
     private LivingEntity findNearestTarget(Player caster, Location origin) {

@@ -97,7 +97,7 @@ public class LapseBlueArmsAbility {
 
     private void startCombo(Player player) {
         UUID id = player.getUniqueId();
-        BukkitRunnable runnable = new BukkitRunnable() {
+        BukkitTask task = new BukkitRunnable() {
             int step = 0;
 
             @Override
@@ -115,8 +115,7 @@ public class LapseBlueArmsAbility {
                     cleanup(id);
                 }
             }
-        };
-        BukkitTask task = runnable.runTaskTimer(plugin, 0L, TICKS_BETWEEN_HITS);
+        }.runTaskTimer(plugin, 0L, TICKS_BETWEEN_HITS);
         activeCombos.put(id, task);
     }
 

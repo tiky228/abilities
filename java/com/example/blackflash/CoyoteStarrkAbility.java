@@ -619,7 +619,7 @@ public class CoyoteStarrkAbility {
             tasks.add(dashTask);
         }
 
-        new BukkitRunnable() {
+        BukkitTask monitorTask = new BukkitRunnable() {
             @Override
             public void run() {
                 List<UUID> remaining = activeWolves.get(ownerId);
@@ -640,6 +640,7 @@ public class CoyoteStarrkAbility {
                 }
             }
         }.runTaskTimer(plugin, STORM_MAX_DURATION_TICKS, 20L);
+        tasks.add(monitorTask);
     }
 
     private LivingEntity findStormTarget(Player owner, Wolf wolf) {

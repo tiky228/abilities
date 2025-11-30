@@ -119,7 +119,7 @@ public class LapseBlueAbility {
                 player.getEyeLocation().add(player.getLocation().getDirection().normalize().multiply(FOLLOW_DISTANCE)),
                 enhanced);
         sphereStates.put(id, state);
-        BukkitRunnable runnable = new BukkitRunnable() {
+        BukkitTask task = new BukkitRunnable() {
             int ticks = 0;
             Location currentCenter = player.getEyeLocation()
                     .add(player.getLocation().getDirection().normalize().multiply(FOLLOW_DISTANCE));
@@ -146,16 +146,16 @@ public class LapseBlueAbility {
                     startAttractionPhase(player, currentCenter.clone(), enhanced, state);
                 }
             }
-        };
-        handle[0] = runnable.runTaskTimer(plugin, 0L, 1L);
-        trackTask(id, handle[0]);
+        }.runTaskTimer(plugin, 0L, 1L);
+        handle[0] = task;
+        trackTask(id, task);
     }
 
     private void startAttractionPhase(Player player, Location center, boolean enhanced, BlueSphereState state) {
         UUID id = player.getUniqueId();
         int maxTicks = enhanced ? ENHANCED_ATTRACTION_DURATION_TICKS : ATTRACTION_DURATION_TICKS;
         BukkitTask[] handle = new BukkitTask[1];
-        BukkitRunnable runnable = new BukkitRunnable() {
+        BukkitTask task = new BukkitRunnable() {
             int ticks = 0;
 
             @Override
@@ -178,9 +178,9 @@ public class LapseBlueAbility {
                     sphereStates.remove(id);
                 }
             }
-        };
-        handle[0] = runnable.runTaskTimer(plugin, 0L, 1L);
-        trackTask(id, handle[0]);
+        }.runTaskTimer(plugin, 0L, 1L);
+        handle[0] = task;
+        trackTask(id, task);
     }
 
     private void spawnSphere(Location center) {
@@ -284,7 +284,7 @@ public class LapseBlueAbility {
         state.setHollowPurpleActive(true);
         notifyHollowPurple(center);
         BukkitTask[] handle = new BukkitTask[1];
-        BukkitRunnable runnable = new BukkitRunnable() {
+        BukkitTask task = new BukkitRunnable() {
             int ticks = 0;
 
             @Override
@@ -309,9 +309,9 @@ public class LapseBlueAbility {
                 cleanup(id, handle[0]);
                 sphereStates.remove(id);
             }
-        };
-        handle[0] = runnable.runTaskTimer(plugin, 0L, 1L);
-        trackTask(id, handle[0]);
+        }.runTaskTimer(plugin, 0L, 1L);
+        handle[0] = task;
+        trackTask(id, task);
     }
 
     private void spawnHollowPurpleSphere(Location center) {

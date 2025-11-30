@@ -244,12 +244,13 @@ public class BankaiAbility {
         player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 15, 5, false, false, true));
         spawnStanceParticles(player.getLocation());
 
-        new BukkitRunnable() {
+        BukkitTask getsugaTask = new BukkitRunnable() {
             @Override
             public void run() {
                 fireGetsuga(player, state);
             }
         }.runTaskLater(plugin, 12L);
+        state.transformationTasks.add(getsugaTask);
     }
 
     private void spawnStanceParticles(Location loc) {

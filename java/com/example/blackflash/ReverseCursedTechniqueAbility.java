@@ -201,7 +201,7 @@ public class ReverseCursedTechniqueAbility {
         penaltyUntil.put(id, expiry);
         applyImmobility(player, PENALTY_SECONDS * 20 + 10);
 
-        new BukkitRunnable() {
+        BukkitTask penaltyTask = new BukkitRunnable() {
             @Override
             public void run() {
                 penaltyUntil.remove(id);
