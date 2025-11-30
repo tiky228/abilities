@@ -299,6 +299,33 @@ public class GojoAwakeningAbility {
         return true;
     }
 
+    public int getAbilityPoints(Player player) {
+        AwakeningState state = activeAwakenings.get(player.getUniqueId());
+        return state != null ? state.getAbilityPoints() : 0;
+    }
+
+    public boolean hasAbilityPoint(Player player) {
+        return getAbilityPoints(player) > 0;
+    }
+
+    public int addAbilityPoint(Player player) {
+        AwakeningState state = activeAwakenings.get(player.getUniqueId());
+        if (state == null) {
+            return 0;
+        }
+        int updated = state.incrementAbilityPoints();
+        player.sendMessage(ChatColor.AQUA + "You gained +1 Ability Point (Total: " + updated + ").");
+        return updated;
+    }
+
+    public boolean consumeAbilityPoint(Player player) {
+        AwakeningState state = activeAwakenings.get(player.getUniqueId());
+        if (state == null) {
+            return false;
+        }
+        return state.consumeAbilityPoint();
+    }
+
     private InventorySnapshot captureInventory(Player player) {
         org.bukkit.inventory.PlayerInventory inventory = player.getInventory();
         return new InventorySnapshot(inventory.getContents().clone(), inventory.getArmorContents().clone(),
@@ -402,6 +429,7 @@ public class GojoAwakeningAbility {
         private BukkitTask upkeepTask;
         private BukkitTask endTask;
         private long endTimeMillis;
+        private int abilityPoints;
 
         private AwakeningState(double baseHealth, long endTimeMillis) {
             this.baseHealth = baseHealth;
@@ -426,6 +454,23 @@ public class GojoAwakeningAbility {
 
         private void setEndTimeMillis(long endTimeMillis) {
             this.endTimeMillis = endTimeMillis;
+        }
+
+        private int getAbilityPoints() {
+            return abilityPoints;
+        }
+
+        private int incrementAbilityPoints() {
+            abilityPoints++;
+            return abilityPoints;
+        }
+
+        private boolean consumeAbilityPoint() {
+            if (abilityPoints <= 0) {
+                return false;
+            }
+            abilityPoints--;
+            return true;
         }
 
         private void cancel() {

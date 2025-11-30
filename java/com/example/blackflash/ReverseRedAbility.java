@@ -29,9 +29,14 @@ public class ReverseRedAbility {
     private static final int CHARGE_TICKS = 20;
     private static final int MAX_TRAVEL_TICKS = 22;
     private static final double STEP_DISTANCE = 4.8;
-    private static final double HIT_RADIUS = 0.75;
+    private static final double HIT_RADIUS = 1.25;
     private static final double DAMAGE = 14.0;
     private static final double KNOCKBACK = 1.6;
+    private static final double HOMING_RANGE = 18.0;
+    private static final double HOMING_STEP_DISTANCE = 7.2;
+    private static final int HOMING_MAX_TICKS = 35;
+    private static final double HOMING_DAMAGE = 18.0;
+    private static final double HOMING_KNOCKBACK = 2.0;
 
     private final BlackFlashPlugin plugin;
     private final NamespacedKey itemKey;
@@ -87,13 +92,14 @@ public class ReverseRedAbility {
             return;
         }
 
+        boolean enhanced = awakeningAbility.hasAbilityPoint(player);
         cooldownManager.setCooldown(id, COOLDOWN_SECONDS);
         Vector direction = player.getLocation().getDirection().normalize();
         Location spawnLocation = player.getEyeLocation().add(direction.clone().multiply(1.4));
-        beginCharge(player, spawnLocation, direction);
+        beginCharge(player, spawnLocation, direction, enhanced);
     }
 
-    private void beginCharge(Player player, Location origin, Vector direction) {
+    private void beginCharge(Player player, Location origin, Vector direction, boolean enhanced) {
         UUID id = player.getUniqueId();
         BukkitTask[] handle = new BukkitTask[1];
         BukkitRunnable runnable = new BukkitRunnable() {
@@ -110,7 +116,7 @@ public class ReverseRedAbility {
                 if (++ticks >= CHARGE_TICKS) {
                     cancel();
                     cleanup(id, handle[0]);
-                    launchProjectile(player, origin.clone(), direction.clone());
+                    launchProjectile(player, origin.clone(), direction.clone(), enhanced);
                 }
             }
         };
@@ -119,12 +125,13 @@ public class ReverseRedAbility {
         player.playSound(player.getLocation(), Sound.ITEM_TRIDENT_THUNDER, 0.9f, 1.1f);
     }
 
-    private void launchProjectile(Player player, Location current, Vector direction) {
+    private void launchProjectile(Player player, Location current, Vector direction, boolean enhanced) {
         UUID id = player.getUniqueId();
         BukkitTask[] handle = new BukkitTask[1];
         Vector[] adjustedDirection = { direction.normalize() };
         BukkitRunnable runnable = new BukkitRunnable() {
             int ticks = 0;
+            boolean hitTarget = false;
 
             @Override
             public void run() {
@@ -142,14 +149,68 @@ public class ReverseRedAbility {
                 if (hitSolidBlock(current)) {
                     cancel();
                     cleanup(id, handle[0]);
+                    if (enhanced && !hitTarget) {
+                        startHoming(player, current.clone());
+                    }
                     return;
                 }
-                if (checkEntityHit(player, current)) {
+                if (checkEntityHit(player, current, HIT_RADIUS, DAMAGE, KNOCKBACK)) {
+                    hitTarget = true;
                     cancel();
                     cleanup(id, handle[0]);
                     return;
                 }
                 if (++ticks >= MAX_TRAVEL_TICKS) {
+                    cancel();
+                    cleanup(id, handle[0]);
+                    if (enhanced && !hitTarget) {
+                        startHoming(player, current.clone());
+                    }
+                }
+            }
+        };
+        handle[0] = runnable.runTaskTimer(plugin, 1L, 1L);
+        trackTask(id, handle[0]);
+    }
+
+    private void startHoming(Player player, Location current) {
+        UUID id = player.getUniqueId();
+        if (!awakeningAbility.consumeAbilityPoint(player)) {
+            return;
+        }
+        LivingEntity target = findNearestTarget(player, current);
+        if (target == null) {
+            return;
+        }
+
+        BukkitTask[] handle = new BukkitTask[1];
+        BukkitRunnable runnable = new BukkitRunnable() {
+            int ticks = 0;
+
+            @Override
+            public void run() {
+                if (!isActive(player)) {
+                    cancel();
+                    cleanup(id, handle[0]);
+                    return;
+                }
+                if (!target.isValid() || target.isDead()) {
+                    cancel();
+                    cleanup(id, handle[0]);
+                    return;
+                }
+                Vector targetFacing = target.getLocation().getDirection().normalize();
+                Vector targetPoint = target.getLocation().add(0, 1, 0).toVector()
+                        .add(targetFacing.multiply(-1.6));
+                Vector travel = targetPoint.subtract(current.toVector()).normalize().multiply(HOMING_STEP_DISTANCE);
+                current.add(travel);
+                spawnSphere(current, 0.8f);
+                if (checkEntityHit(player, current, HIT_RADIUS, HOMING_DAMAGE, HOMING_KNOCKBACK)) {
+                    cancel();
+                    cleanup(id, handle[0]);
+                    return;
+                }
+                if (++ticks >= HOMING_MAX_TICKS) {
                     cancel();
                     cleanup(id, handle[0]);
                 }
@@ -159,25 +220,42 @@ public class ReverseRedAbility {
         trackTask(id, handle[0]);
     }
 
+    private LivingEntity findNearestTarget(Player caster, Location origin) {
+        LivingEntity nearest = null;
+        double nearestDistanceSq = HOMING_RANGE * HOMING_RANGE;
+        for (LivingEntity entity : origin.getNearbyLivingEntities(HOMING_RANGE)) {
+            if (entity.getUniqueId().equals(caster.getUniqueId())) {
+                continue;
+            }
+            double distanceSq = entity.getLocation().distanceSquared(origin);
+            if (distanceSq < nearestDistanceSq) {
+                nearestDistanceSq = distanceSq;
+                nearest = entity;
+            }
+        }
+        return nearest;
+    }
+
     private boolean hitSolidBlock(Location location) {
         Block block = location.getBlock();
         return block != null && block.getType().isSolid();
     }
 
-    private boolean checkEntityHit(Player caster, Location center) {
-        for (LivingEntity entity : center.getNearbyLivingEntities(HIT_RADIUS)) {
+    private boolean checkEntityHit(Player caster, Location center, double radius, double damage, double knockback) {
+        for (LivingEntity entity : center.getNearbyLivingEntities(radius)) {
             if (entity.getUniqueId().equals(caster.getUniqueId())) {
                 continue;
             }
-            applyImpact(caster, entity, center);
+            applyImpact(caster, entity, center, damage, knockback);
             return true;
         }
         return false;
     }
 
-    private void applyImpact(Player caster, LivingEntity target, Location origin) {
-        target.damage(DAMAGE, caster);
-        Vector knockback = target.getLocation().toVector().subtract(origin.toVector()).normalize().multiply(KNOCKBACK);
+    private void applyImpact(Player caster, LivingEntity target, Location origin, double damage, double knockbackForce) {
+        target.damage(damage, caster);
+        Vector knockback = target.getLocation().toVector().subtract(origin.toVector()).normalize()
+                .multiply(knockbackForce);
         knockback.setY(Math.max(0.5, knockback.getY()));
         target.setVelocity(knockback);
         spawnSphere(origin, 0.9f);

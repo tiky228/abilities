@@ -27,10 +27,13 @@ public class LapseBlueAbility {
     private static final int COOLDOWN_SECONDS = 25;
     private static final int FOLLOW_DURATION_TICKS = 20; // 1 second
     private static final int ATTRACTION_DURATION_TICKS = 100; // 5 seconds
+    private static final int ENHANCED_ATTRACTION_DURATION_TICKS = 160; // 8 seconds
+    private static final int DAMAGE_INTERVAL_TICKS = 10;
     private static final double FOLLOW_DISTANCE = 8.5;
     private static final double SPHERE_RADIUS = 2.25;
     private static final double ATTRACTION_RADIUS = 7.5;
     private static final double PULL_STRENGTH = 0.45;
+    private static final double DAMAGE_PER_TICK = 3.0;
 
     private final BlackFlashPlugin plugin;
     private final NamespacedKey itemKey;
@@ -86,13 +89,20 @@ public class LapseBlueAbility {
             return;
         }
 
+        boolean enhanced = awakeningAbility.hasAbilityPoint(player);
+        if (enhanced && !awakeningAbility.consumeAbilityPoint(player)) {
+            enhanced = false;
+        }
         cooldownManager.setCooldown(id, COOLDOWN_SECONDS);
-        startFollowPhase(player);
+        startFollowPhase(player, enhanced);
+        if (enhanced) {
+            player.sendMessage(ChatColor.AQUA + "Ability Point consumed — Lapse Blue: Maximum Output (Enhanced).");
+        }
         player.playSound(player.getLocation(), Sound.ENTITY_ILLUSIONER_CAST_SPELL, 1.2f, 1.1f);
         player.sendMessage(ChatColor.AQUA + "Lapse Blue surges ahead of you!");
     }
 
-    private void startFollowPhase(Player player) {
+    private void startFollowPhase(Player player, boolean enhanced) {
         UUID id = player.getUniqueId();
         BukkitTask[] handle = new BukkitTask[1];
         BukkitRunnable runnable = new BukkitRunnable() {
@@ -111,10 +121,13 @@ public class LapseBlueAbility {
                         .multiply(FOLLOW_DISTANCE));
                 spawnSphere(currentCenter);
                 pullEntities(currentCenter, player);
+                if (enhanced && ticks % DAMAGE_INTERVAL_TICKS == 0) {
+                    damageEntities(currentCenter, player);
+                }
                 if (++ticks >= FOLLOW_DURATION_TICKS) {
                     cancel();
                     cleanup(id, handle[0]);
-                    startAttractionPhase(player, currentCenter.clone());
+                    startAttractionPhase(player, currentCenter.clone(), enhanced);
                 }
             }
         };
@@ -122,8 +135,9 @@ public class LapseBlueAbility {
         trackTask(id, handle[0]);
     }
 
-    private void startAttractionPhase(Player player, Location center) {
+    private void startAttractionPhase(Player player, Location center, boolean enhanced) {
         UUID id = player.getUniqueId();
+        int maxTicks = enhanced ? ENHANCED_ATTRACTION_DURATION_TICKS : ATTRACTION_DURATION_TICKS;
         BukkitTask[] handle = new BukkitTask[1];
         BukkitRunnable runnable = new BukkitRunnable() {
             int ticks = 0;
@@ -137,7 +151,10 @@ public class LapseBlueAbility {
                 }
                 spawnSphere(center);
                 pullEntities(center, player);
-                if (++ticks >= ATTRACTION_DURATION_TICKS) {
+                if (enhanced && ticks % DAMAGE_INTERVAL_TICKS == 0) {
+                    damageEntities(center, player);
+                }
+                if (++ticks >= maxTicks) {
                     cancel();
                     cleanup(id, handle[0]);
                 }
@@ -176,6 +193,15 @@ public class LapseBlueAbility {
             Vector push = toCenter.normalize().multiply(PULL_STRENGTH);
             push.setY(Math.min(0.45, push.getY() + 0.05));
             entity.setVelocity(entity.getVelocity().multiply(0.4).add(push));
+        }
+    }
+
+    private void damageEntities(Location center, Player caster) {
+        for (LivingEntity entity : center.getNearbyLivingEntities(ATTRACTION_RADIUS)) {
+            if (entity.getUniqueId().equals(caster.getUniqueId())) {
+                continue;
+            }
+            entity.damage(DAMAGE_PER_TICK, caster);
         }
     }
 
