@@ -28,6 +28,10 @@ public class CooldownManager {
         cooldowns.remove(id);
     }
 
+    public void clearAll() {
+        cooldowns.clear();
+    }
+
     private long getRemainingMillis(UUID id) {
         Long expires = cooldowns.get(id);
         if (expires == null) {
