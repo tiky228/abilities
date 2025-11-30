@@ -25,7 +25,7 @@ import org.bukkit.util.Vector;
 public class LapseBlueAbility {
 
     private static final int COOLDOWN_SECONDS = 25;
-    private static final int FOLLOW_DURATION_TICKS = 20; // 1 second
+    private static final int FOLLOW_DURATION_TICKS = 50; // 2.5 seconds
     private static final int ATTRACTION_DURATION_TICKS = 100; // 5 seconds
     private static final int ENHANCED_ATTRACTION_DURATION_TICKS = 160; // 8 seconds
     private static final int DAMAGE_INTERVAL_TICKS = 10;
@@ -34,6 +34,13 @@ public class LapseBlueAbility {
     private static final double ATTRACTION_RADIUS = 7.5;
     private static final double PULL_STRENGTH = 0.45;
     private static final double DAMAGE_PER_TICK = 3.0;
+    private static final int HOLLOW_PURPLE_DURATION_TICKS = 70; // 3.5 seconds
+    private static final double HOLLOW_PURPLE_RADIUS = SPHERE_RADIUS * 2.6;
+    private static final double HOLLOW_PURPLE_PULL_STRENGTH = 1.2;
+    private static final double HOLLOW_PURPLE_DAMAGE_PER_TICK = 7.0;
+    private static final double HOLLOW_PURPLE_FINAL_DAMAGE = 26.0;
+    private static final double HOLLOW_PURPLE_FINAL_KNOCKBACK = 3.2;
+    private static final double HOLLOW_PURPLE_NOTIFICATION_RANGE = 20.0;
 
     private final BlackFlashPlugin plugin;
     private final NamespacedKey itemKey;
@@ -41,6 +48,7 @@ public class LapseBlueAbility {
     private final GojoAwakeningAbility awakeningAbility;
     private final CooldownManager cooldownManager = new CooldownManager();
     private final Map<UUID, List<BukkitTask>> activeTasks = new HashMap<>();
+    private final Map<UUID, BlueSphereState> sphereStates = new HashMap<>();
 
     public LapseBlueAbility(BlackFlashPlugin plugin, NamespacedKey itemKey,
             AbilityRestrictionManager restrictionManager, GojoAwakeningAbility awakeningAbility) {
@@ -105,6 +113,10 @@ public class LapseBlueAbility {
     private void startFollowPhase(Player player, boolean enhanced) {
         UUID id = player.getUniqueId();
         BukkitTask[] handle = new BukkitTask[1];
+        BlueSphereState state = new BlueSphereState(
+                player.getEyeLocation().add(player.getLocation().getDirection().normalize().multiply(FOLLOW_DISTANCE)),
+                enhanced);
+        sphereStates.put(id, state);
         BukkitRunnable runnable = new BukkitRunnable() {
             int ticks = 0;
             Location currentCenter = player.getEyeLocation()
@@ -115,10 +127,12 @@ public class LapseBlueAbility {
                 if (!isActive(player)) {
                     cancel();
                     cleanup(id, handle[0]);
+                    sphereStates.remove(id);
                     return;
                 }
                 currentCenter = player.getEyeLocation().add(player.getLocation().getDirection().normalize()
                         .multiply(FOLLOW_DISTANCE));
+                state.setCenter(currentCenter.clone());
                 spawnSphere(currentCenter);
                 pullEntities(currentCenter, player);
                 if (enhanced && ticks % DAMAGE_INTERVAL_TICKS == 0) {
@@ -127,7 +141,7 @@ public class LapseBlueAbility {
                 if (++ticks >= FOLLOW_DURATION_TICKS) {
                     cancel();
                     cleanup(id, handle[0]);
-                    startAttractionPhase(player, currentCenter.clone(), enhanced);
+                    startAttractionPhase(player, currentCenter.clone(), enhanced, state);
                 }
             }
         };
@@ -135,7 +149,7 @@ public class LapseBlueAbility {
         trackTask(id, handle[0]);
     }
 
-    private void startAttractionPhase(Player player, Location center, boolean enhanced) {
+    private void startAttractionPhase(Player player, Location center, boolean enhanced, BlueSphereState state) {
         UUID id = player.getUniqueId();
         int maxTicks = enhanced ? ENHANCED_ATTRACTION_DURATION_TICKS : ATTRACTION_DURATION_TICKS;
         BukkitTask[] handle = new BukkitTask[1];
@@ -147,8 +161,10 @@ public class LapseBlueAbility {
                 if (!isActive(player)) {
                     cancel();
                     cleanup(id, handle[0]);
+                    sphereStates.remove(id);
                     return;
                 }
+                state.setCenter(center.clone());
                 spawnSphere(center);
                 pullEntities(center, player);
                 if (enhanced && ticks % DAMAGE_INTERVAL_TICKS == 0) {
@@ -157,6 +173,7 @@ public class LapseBlueAbility {
                 if (++ticks >= maxTicks) {
                     cancel();
                     cleanup(id, handle[0]);
+                    sphereStates.remove(id);
                 }
             }
         };
@@ -196,12 +213,33 @@ public class LapseBlueAbility {
         }
     }
 
+    private void pullEntities(Location center, Player caster, double radius, double strength) {
+        for (LivingEntity entity : center.getNearbyLivingEntities(radius)) {
+            if (entity.getUniqueId().equals(caster.getUniqueId())) {
+                continue;
+            }
+            Vector toCenter = center.toVector().subtract(entity.getLocation().toVector());
+            Vector push = toCenter.normalize().multiply(strength);
+            push.setY(Math.min(0.85, push.getY() + 0.1));
+            entity.setVelocity(entity.getVelocity().multiply(0.35).add(push));
+        }
+    }
+
     private void damageEntities(Location center, Player caster) {
         for (LivingEntity entity : center.getNearbyLivingEntities(ATTRACTION_RADIUS)) {
             if (entity.getUniqueId().equals(caster.getUniqueId())) {
                 continue;
             }
             entity.damage(DAMAGE_PER_TICK, caster);
+        }
+    }
+
+    private void damageEntities(Location center, Player caster, double radius, double damage) {
+        for (LivingEntity entity : center.getNearbyLivingEntities(radius)) {
+            if (entity.getUniqueId().equals(caster.getUniqueId())) {
+                continue;
+            }
+            entity.damage(damage, caster);
         }
     }
 
@@ -224,12 +262,148 @@ public class LapseBlueAbility {
         }
     }
 
-    public void clearAll() {
-        for (List<BukkitTask> tasks : activeTasks.values()) {
-            for (BukkitTask task : tasks) {
-                task.cancel();
+    public boolean tryTriggerHollowPurple(Player player) {
+        UUID id = player.getUniqueId();
+        BlueSphereState state = sphereStates.get(id);
+        if (state == null || !state.isEnhanced() || state.isHollowPurpleActive()) {
+            return false;
+        }
+        if (!awakeningAbility.consumeAbilityPoint(player)) {
+            return false;
+        }
+        cancelTasks(id);
+        startHollowPurple(player, state);
+        return true;
+    }
+
+    private void startHollowPurple(Player player, BlueSphereState state) {
+        UUID id = player.getUniqueId();
+        Location center = state.getCenter().clone();
+        state.setHollowPurpleActive(true);
+        notifyHollowPurple(center);
+        BukkitTask[] handle = new BukkitTask[1];
+        BukkitRunnable runnable = new BukkitRunnable() {
+            int ticks = 0;
+
+            @Override
+            public void run() {
+                if (!isActive(player)) {
+                    cancel();
+                    cleanup(id, handle[0]);
+                    sphereStates.remove(id);
+                    return;
+                }
+                if (ticks < HOLLOW_PURPLE_DURATION_TICKS) {
+                    spawnHollowPurpleSphere(center);
+                    pullEntities(center, player, HOLLOW_PURPLE_RADIUS, HOLLOW_PURPLE_PULL_STRENGTH);
+                    if (ticks % DAMAGE_INTERVAL_TICKS == 0) {
+                        damageEntities(center, player, HOLLOW_PURPLE_RADIUS, HOLLOW_PURPLE_DAMAGE_PER_TICK);
+                    }
+                    ticks++;
+                    return;
+                }
+                detonateHollowPurple(center, player);
+                cancel();
+                cleanup(id, handle[0]);
+                sphereStates.remove(id);
+            }
+        };
+        handle[0] = runnable.runTaskTimer(plugin, 0L, 1L);
+        trackTask(id, handle[0]);
+    }
+
+    private void spawnHollowPurpleSphere(Location center) {
+        double radius = HOLLOW_PURPLE_RADIUS;
+        int verticalSteps = 10;
+        int horizontalSteps = 18;
+        for (int i = 0; i <= verticalSteps; i++) {
+            double phi = Math.PI * i / verticalSteps;
+            double y = radius * Math.cos(phi);
+            double ringRadius = radius * Math.sin(phi);
+            for (int j = 0; j < horizontalSteps; j++) {
+                double theta = 2 * Math.PI * j / horizontalSteps;
+                Vector offset = new Vector(Math.cos(theta) * ringRadius, y, Math.sin(theta) * ringRadius);
+                Location point = center.clone().add(offset);
+                center.getWorld().spawnParticle(Particle.REDSTONE, point, 1, 0.04, 0.04, 0.04, 0.0,
+                        new Particle.DustOptions(Color.fromRGB(170, 70, 255), 1.6f));
+                if (j % 3 == 0) {
+                    center.getWorld().spawnParticle(Particle.PORTAL, point, 1, 0.07, 0.07, 0.07, 0.0);
+                    center.getWorld().spawnParticle(Particle.SPELL_WITCH, point, 1, 0.03, 0.03, 0.03, 0.0);
+                }
             }
         }
-        activeTasks.clear();
+    }
+
+    private void notifyHollowPurple(Location center) {
+        for (Player nearby : center.getWorld().getPlayers()) {
+            if (nearby.getLocation().distance(center) <= HOLLOW_PURPLE_NOTIFICATION_RANGE) {
+                nearby.sendMessage(ChatColor.LIGHT_PURPLE + "Hollow Purple!");
+            }
+        }
+        center.getWorld().playSound(center, Sound.ENTITY_ENDER_DRAGON_GROWL, 1.2f, 1.2f);
+    }
+
+    private void detonateHollowPurple(Location center, Player caster) {
+        damageEntities(center, caster, HOLLOW_PURPLE_RADIUS, HOLLOW_PURPLE_FINAL_DAMAGE);
+        for (LivingEntity entity : center.getNearbyLivingEntities(HOLLOW_PURPLE_RADIUS)) {
+            Vector push = entity.getLocation().toVector().subtract(center.toVector()).normalize()
+                    .multiply(HOLLOW_PURPLE_FINAL_KNOCKBACK);
+            push.setY(Math.max(0.8, push.getY() + 0.2));
+            entity.setVelocity(entity.getVelocity().multiply(0.3).add(push));
+        }
+        center.getWorld().spawnParticle(Particle.END_ROD, center, 60, HOLLOW_PURPLE_RADIUS, HOLLOW_PURPLE_RADIUS,
+                HOLLOW_PURPLE_RADIUS, 0.12);
+        center.getWorld().spawnParticle(Particle.SONIC_BOOM, center, 8, HOLLOW_PURPLE_RADIUS * 0.4,
+                HOLLOW_PURPLE_RADIUS * 0.4, HOLLOW_PURPLE_RADIUS * 0.4, 0.05);
+        center.getWorld().playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 1.4f, 0.6f);
+    }
+
+    public void clearAll() {
+        for (UUID id : new ArrayList<>(activeTasks.keySet())) {
+            cancelTasks(id);
+        }
+        sphereStates.clear();
+    }
+
+    private void cancelTasks(UUID id) {
+        List<BukkitTask> tasks = activeTasks.remove(id);
+        if (tasks == null) {
+            return;
+        }
+        for (BukkitTask task : tasks) {
+            task.cancel();
+        }
+    }
+
+    private static class BlueSphereState {
+        private Location center;
+        private final boolean enhanced;
+        private boolean hollowPurpleActive;
+
+        BlueSphereState(Location center, boolean enhanced) {
+            this.center = center;
+            this.enhanced = enhanced;
+            this.hollowPurpleActive = false;
+        }
+
+        public Location getCenter() {
+            return center;
+        }
+
+        public void setCenter(Location center) {
+            this.center = center;
+        }
+
+        public boolean isEnhanced() {
+            return enhanced;
+        }
+
+        public boolean isHollowPurpleActive() {
+            return hollowPurpleActive;
+        }
+
+        public void setHollowPurpleActive(boolean hollowPurpleActive) {
+            this.hollowPurpleActive = hollowPurpleActive;
+        }
     }
 }

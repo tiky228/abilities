@@ -32,25 +32,30 @@ public class ReverseRedAbility {
     private static final double HIT_RADIUS = 1.25;
     private static final double DAMAGE = 14.0;
     private static final double KNOCKBACK = 1.6;
-    private static final double HOMING_RANGE = 18.0;
-    private static final double HOMING_STEP_DISTANCE = 7.2;
+    private static final double HOMING_RANGE = 20.0;
+    private static final double HOMING_STEP_DISTANCE = 9.4;
     private static final int HOMING_MAX_TICKS = 35;
     private static final double HOMING_DAMAGE = 18.0;
     private static final double HOMING_KNOCKBACK = 2.0;
+    private static final double ENHANCED_PULL_STRENGTH = 1.4;
+    private static final double ENHANCED_PULL_VERTICAL_LIMIT = 0.9;
 
     private final BlackFlashPlugin plugin;
     private final NamespacedKey itemKey;
     private final AbilityRestrictionManager restrictionManager;
     private final GojoAwakeningAbility awakeningAbility;
+    private final LapseBlueAbility lapseBlueAbility;
     private final CooldownManager cooldownManager = new CooldownManager();
     private final Map<UUID, List<BukkitTask>> activeTasks = new HashMap<>();
 
     public ReverseRedAbility(BlackFlashPlugin plugin, NamespacedKey itemKey,
-            AbilityRestrictionManager restrictionManager, GojoAwakeningAbility awakeningAbility) {
+            AbilityRestrictionManager restrictionManager, GojoAwakeningAbility awakeningAbility,
+            LapseBlueAbility lapseBlueAbility) {
         this.plugin = plugin;
         this.itemKey = itemKey;
         this.restrictionManager = restrictionManager;
         this.awakeningAbility = awakeningAbility;
+        this.lapseBlueAbility = lapseBlueAbility;
     }
 
     public ItemStack createItem() {
@@ -154,7 +159,7 @@ public class ReverseRedAbility {
                     }
                     return;
                 }
-                if (checkEntityHit(player, current, HIT_RADIUS, DAMAGE, KNOCKBACK)) {
+                if (checkEntityHit(player, current, HIT_RADIUS, DAMAGE, KNOCKBACK, enhanced)) {
                     hitTarget = true;
                     cancel();
                     cleanup(id, handle[0]);
@@ -175,11 +180,11 @@ public class ReverseRedAbility {
 
     private void startHoming(Player player, Location current) {
         UUID id = player.getUniqueId();
-        if (!awakeningAbility.consumeAbilityPoint(player)) {
-            return;
-        }
         LivingEntity target = findNearestTarget(player, current);
         if (target == null) {
+            return;
+        }
+        if (!awakeningAbility.consumeAbilityPoint(player)) {
             return;
         }
 
@@ -205,7 +210,7 @@ public class ReverseRedAbility {
                 Vector travel = targetPoint.subtract(current.toVector()).normalize().multiply(HOMING_STEP_DISTANCE);
                 current.add(travel);
                 spawnSphere(current, 0.8f);
-                if (checkEntityHit(player, current, HIT_RADIUS, HOMING_DAMAGE, HOMING_KNOCKBACK)) {
+                if (checkEntityHit(player, current, HIT_RADIUS, HOMING_DAMAGE, HOMING_KNOCKBACK, true)) {
                     cancel();
                     cleanup(id, handle[0]);
                     return;
@@ -241,25 +246,36 @@ public class ReverseRedAbility {
         return block != null && block.getType().isSolid();
     }
 
-    private boolean checkEntityHit(Player caster, Location center, double radius, double damage, double knockback) {
+    private boolean checkEntityHit(Player caster, Location center, double radius, double damage, double knockback,
+            boolean enhanced) {
         for (LivingEntity entity : center.getNearbyLivingEntities(radius)) {
             if (entity.getUniqueId().equals(caster.getUniqueId())) {
                 continue;
             }
-            applyImpact(caster, entity, center, damage, knockback);
+            applyImpact(caster, entity, center, damage, knockback, enhanced);
             return true;
         }
         return false;
     }
 
-    private void applyImpact(Player caster, LivingEntity target, Location origin, double damage, double knockbackForce) {
+    private void applyImpact(Player caster, LivingEntity target, Location origin, double damage, double knockbackForce,
+            boolean enhanced) {
+        if (enhanced) {
+            Vector pull = origin.toVector().subtract(target.getLocation().toVector()).normalize()
+                    .multiply(ENHANCED_PULL_STRENGTH);
+            pull.setY(Math.min(ENHANCED_PULL_VERTICAL_LIMIT, pull.getY() + 0.2));
+            target.setVelocity(target.getVelocity().multiply(0.2).add(pull));
+        }
         target.damage(damage, caster);
         Vector knockback = target.getLocation().toVector().subtract(origin.toVector()).normalize()
                 .multiply(knockbackForce);
         knockback.setY(Math.max(0.5, knockback.getY()));
-        target.setVelocity(knockback);
+        target.setVelocity(target.getVelocity().add(knockback));
         spawnSphere(origin, 0.9f);
         origin.getWorld().playSound(origin, Sound.ENTITY_GENERIC_EXPLODE, 1.2f, 1.0f);
+        if (enhanced && lapseBlueAbility != null) {
+            lapseBlueAbility.tryTriggerHollowPurple(caster);
+        }
     }
 
     private void spawnSphere(Location center, float size) {
