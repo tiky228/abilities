@@ -195,19 +195,16 @@ public class GojoAwakeningAbility {
                 false));
 
         long startTime = System.currentTimeMillis();
-        BukkitTask upkeepTask = startUpkeepTask(caster, startTime);
-        BukkitTask endTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                endAwakening(caster, false);
-            }
-        }.runTaskLater(plugin, AWAKENING_TICKS);
+        AwakeningState state = new AwakeningState(baseHealth, startTime + (AWAKENING_TICKS * 50));
+        BukkitTask upkeepTask = startUpkeepTask(caster, state);
+        state.setUpkeepTask(upkeepTask);
+        state.setEndTask(scheduleEndTask(caster, state));
 
-        activeAwakenings.put(caster.getUniqueId(), new AwakeningState(baseHealth, upkeepTask, endTask));
+        activeAwakenings.put(caster.getUniqueId(), state);
         caster.sendMessage(ChatColor.AQUA + "You unveil limitless technique. Awakening lasts 120s.");
     }
 
-    private BukkitTask startUpkeepTask(Player caster, long startTime) {
+    private BukkitTask startUpkeepTask(Player caster, AwakeningState state) {
         return new BukkitRunnable() {
             @Override
             public void run() {
@@ -220,12 +217,22 @@ public class GojoAwakeningAbility {
                 caster.setSaturation(20f);
                 caster.setExhaustion(0f);
 
-                long elapsed = System.currentTimeMillis() - startTime;
-                long remainingMs = Math.max(0, (AWAKENING_TICKS * 50) - elapsed);
+                long remainingMs = Math.max(0, state.getEndTimeMillis() - System.currentTimeMillis());
                 long secondsLeft = (remainingMs + 999) / 1000;
                 caster.sendActionBar(Component.text("Awakening: " + secondsLeft + "s", NamedTextColor.AQUA));
             }
         }.runTaskTimer(plugin, 0L, 20L);
+    }
+
+    private BukkitTask scheduleEndTask(Player caster, AwakeningState state) {
+        long remainingMs = Math.max(1L, state.getEndTimeMillis() - System.currentTimeMillis());
+        long delayTicks = Math.max(1L, (remainingMs + 49) / 50);
+        return new BukkitRunnable() {
+            @Override
+            public void run() {
+                endAwakening(caster, false);
+            }
+        }.runTaskLater(plugin, delayTicks);
     }
 
     public void endAwakening(Player player, boolean silent) {
@@ -252,6 +259,20 @@ public class GojoAwakeningAbility {
 
     public boolean isAwakening(Player player) {
         return activeAwakenings.containsKey(player.getUniqueId());
+    }
+
+    public boolean extendAwakening(Player player, long extraMillis) {
+        AwakeningState state = activeAwakenings.get(player.getUniqueId());
+        if (state == null) {
+            return false;
+        }
+
+        state.setEndTimeMillis(state.getEndTimeMillis() + extraMillis);
+        if (state.getEndTask() != null) {
+            state.getEndTask().cancel();
+        }
+        state.setEndTask(scheduleEndTask(player, state));
+        return true;
     }
 
     public void clearState(Player player) {
@@ -297,18 +318,42 @@ public class GojoAwakeningAbility {
 
     private static class AwakeningState {
         private final double baseHealth;
-        private final BukkitTask upkeepTask;
-        private final BukkitTask endTask;
+        private BukkitTask upkeepTask;
+        private BukkitTask endTask;
+        private long endTimeMillis;
 
-        private AwakeningState(double baseHealth, BukkitTask upkeepTask, BukkitTask endTask) {
+        private AwakeningState(double baseHealth, long endTimeMillis) {
             this.baseHealth = baseHealth;
+            this.endTimeMillis = endTimeMillis;
+        }
+
+        private void setUpkeepTask(BukkitTask upkeepTask) {
             this.upkeepTask = upkeepTask;
+        }
+
+        private void setEndTask(BukkitTask endTask) {
             this.endTask = endTask;
         }
 
+        private BukkitTask getEndTask() {
+            return endTask;
+        }
+
+        private long getEndTimeMillis() {
+            return endTimeMillis;
+        }
+
+        private void setEndTimeMillis(long endTimeMillis) {
+            this.endTimeMillis = endTimeMillis;
+        }
+
         private void cancel() {
-            upkeepTask.cancel();
-            endTask.cancel();
+            if (upkeepTask != null) {
+                upkeepTask.cancel();
+            }
+            if (endTask != null) {
+                endTask.cancel();
+            }
         }
     }
 }
