@@ -27,9 +27,9 @@ public class LapseBlueAbility {
     private static final int COOLDOWN_SECONDS = 25;
     private static final int FOLLOW_DURATION_TICKS = 60; // 3 seconds
     private static final int ATTRACTION_DURATION_TICKS = 160; // 8 seconds
-    private static final double FOLLOW_DISTANCE = 6.0;
-    private static final double SPHERE_RADIUS = 2.1;
-    private static final double ATTRACTION_RADIUS = 7.0;
+    private static final double FOLLOW_DISTANCE = 9.0;
+    private static final double SPHERE_RADIUS = 2.25;
+    private static final double ATTRACTION_RADIUS = 7.5;
     private static final double PULL_STRENGTH = 0.45;
 
     private final BlackFlashPlugin plugin;
@@ -94,11 +94,11 @@ public class LapseBlueAbility {
 
     private void startFollowPhase(Player player) {
         UUID id = player.getUniqueId();
-        Vector lockedDirection = player.getLocation().getDirection().normalize();
         BukkitTask[] handle = new BukkitTask[1];
         BukkitRunnable runnable = new BukkitRunnable() {
             int ticks = 0;
-            Location currentCenter = player.getEyeLocation().add(lockedDirection.clone().multiply(FOLLOW_DISTANCE));
+            Location currentCenter = player.getEyeLocation()
+                    .add(player.getLocation().getDirection().normalize().multiply(FOLLOW_DISTANCE));
 
             @Override
             public void run() {
@@ -110,6 +110,7 @@ public class LapseBlueAbility {
                 currentCenter = player.getEyeLocation().add(player.getLocation().getDirection().normalize()
                         .multiply(FOLLOW_DISTANCE));
                 spawnSphere(currentCenter);
+                pullEntities(currentCenter, player);
                 if (++ticks >= FOLLOW_DURATION_TICKS) {
                     cancel();
                     cleanup(id, handle[0]);
@@ -117,7 +118,7 @@ public class LapseBlueAbility {
                 }
             }
         };
-        handle[0] = runnable.runTaskTimer(plugin, 0L, 2L);
+        handle[0] = runnable.runTaskTimer(plugin, 0L, 1L);
         trackTask(id, handle[0]);
     }
 
@@ -142,15 +143,29 @@ public class LapseBlueAbility {
                 }
             }
         };
-        handle[0] = runnable.runTaskTimer(plugin, 0L, 2L);
+        handle[0] = runnable.runTaskTimer(plugin, 0L, 1L);
         trackTask(id, handle[0]);
     }
 
     private void spawnSphere(Location center) {
-        center.getWorld().spawnParticle(Particle.REDSTONE, center, 50, SPHERE_RADIUS, SPHERE_RADIUS, SPHERE_RADIUS, 0.04,
-                new Particle.DustOptions(Color.fromRGB(120, 180, 255), 1.3f));
-        center.getWorld().spawnParticle(Particle.END_ROD, center, 18, 0.6, 0.6, 0.6, 0.0);
-        center.getWorld().spawnParticle(Particle.REVERSE_PORTAL, center, 22, 0.8, 0.8, 0.8, 0.01);
+        int verticalSteps = 12;
+        int horizontalSteps = 20;
+        for (int i = 0; i <= verticalSteps; i++) {
+            double phi = Math.PI * i / verticalSteps;
+            double y = SPHERE_RADIUS * Math.cos(phi);
+            double ringRadius = SPHERE_RADIUS * Math.sin(phi);
+            for (int j = 0; j < horizontalSteps; j++) {
+                double theta = 2 * Math.PI * j / horizontalSteps;
+                Vector offset = new Vector(Math.cos(theta) * ringRadius, y, Math.sin(theta) * ringRadius);
+                Location point = center.clone().add(offset);
+                center.getWorld().spawnParticle(Particle.REDSTONE, point, 2, 0.04, 0.04, 0.04, 0.0,
+                        new Particle.DustOptions(Color.fromRGB(90, 170, 255), 1.1f));
+                center.getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, point, 1, 0.01, 0.01, 0.01, 0.0);
+                if (j % 5 == 0) {
+                    center.getWorld().spawnParticle(Particle.END_ROD, point, 1, 0.0, 0.0, 0.0, 0.0);
+                }
+            }
+        }
     }
 
     private void pullEntities(Location center, Player caster) {

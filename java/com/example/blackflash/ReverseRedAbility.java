@@ -27,9 +27,9 @@ public class ReverseRedAbility {
 
     private static final int COOLDOWN_SECONDS = 20;
     private static final int CHARGE_TICKS = 20;
-    private static final int MAX_TRAVEL_TICKS = 30;
-    private static final double STEP_DISTANCE = 1.4;
-    private static final double HIT_RADIUS = 1.3;
+    private static final int MAX_TRAVEL_TICKS = 20;
+    private static final double STEP_DISTANCE = 2.3;
+    private static final double HIT_RADIUS = 0.95;
     private static final double DAMAGE = 14.0;
     private static final double KNOCKBACK = 1.6;
 
@@ -106,7 +106,7 @@ public class ReverseRedAbility {
                     cleanup(id, handle[0]);
                     return;
                 }
-                spawnSphere(origin, 0.9f);
+                spawnSphere(origin, 0.65f);
                 if (++ticks >= CHARGE_TICKS) {
                     cancel();
                     cleanup(id, handle[0]);
@@ -133,7 +133,7 @@ public class ReverseRedAbility {
                     return;
                 }
                 current.add(direction.clone().multiply(STEP_DISTANCE));
-                spawnSphere(current, 1.2f);
+                spawnSphere(current, 0.9f);
                 if (hitSolidBlock(current)) {
                     cancel();
                     cleanup(id, handle[0]);
@@ -175,15 +175,15 @@ public class ReverseRedAbility {
         Vector knockback = target.getLocation().toVector().subtract(origin.toVector()).normalize().multiply(KNOCKBACK);
         knockback.setY(Math.max(0.5, knockback.getY()));
         target.setVelocity(knockback);
-        spawnSphere(origin, 1.6f);
+        spawnSphere(origin, 1.2f);
         origin.getWorld().playSound(origin, Sound.ENTITY_GENERIC_EXPLODE, 1.2f, 1.0f);
     }
 
     private void spawnSphere(Location center, float size) {
-        center.getWorld().spawnParticle(Particle.REDSTONE, center, 35, size * 0.4, size * 0.4, size * 0.4, 0.03,
+        center.getWorld().spawnParticle(Particle.REDSTONE, center, 28, size * 0.3, size * 0.3, size * 0.3, 0.02,
                 new Particle.DustOptions(Color.fromRGB(255, 40, 40), size));
-        center.getWorld().spawnParticle(Particle.CRIT_MAGIC, center, 16, 0.35, 0.35, 0.35, 0.02);
-        center.getWorld().spawnParticle(Particle.FLAME, center, 14, 0.25, 0.25, 0.25, 0.01);
+        center.getWorld().spawnParticle(Particle.CRIT_MAGIC, center, 12, 0.25, 0.25, 0.25, 0.01);
+        center.getWorld().spawnParticle(Particle.FLAME, center, 10, 0.18, 0.18, 0.18, 0.0);
     }
 
     private boolean isActive(Player player) {
