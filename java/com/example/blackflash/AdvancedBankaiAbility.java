@@ -41,8 +41,8 @@ public class AdvancedBankaiAbility {
 
     private static final int BANKAI_DURATION_SECONDS = 90;
     private static final int GETSUGA_COST_SECONDS = 10;
-    private static final int GETSUGA_COOLDOWN_SECONDS = 15;
-    private static final int DASH_COOLDOWN_SECONDS = 9;
+    private static final int GETSUGA_COOLDOWN_SECONDS = 7;
+    private static final int DASH_COOLDOWN_SECONDS = 4;
     private static final double GETSUGA_RANGE = 15.0;
     private static final double SLASH_RADIUS = 1.2;
     private static final double TENSHOU_RADIUS = 3.4;
@@ -51,8 +51,8 @@ public class AdvancedBankaiAbility {
     private static final double DASH_DISTANCE = 5.0;
     private static final double DASH_IMPACT_DAMAGE = 10.0;
     private static final double DASH_IMPACT_RADIUS = 2.0;
-    private static final int REATSU_COOLDOWN_SECONDS = 25;
-    private static final int STAND_COOLDOWN_SECONDS = 45;
+    private static final int REATSU_COOLDOWN_SECONDS = 12;
+    private static final int STAND_COOLDOWN_SECONDS = 22;
     private static final double REATSU_RADIUS = 10.0;
 
     private final BlackFlashPlugin plugin;
@@ -267,13 +267,17 @@ public class AdvancedBankaiAbility {
             return;
         }
         Particle.DustOptions ring = new Particle.DustOptions(Color.fromRGB(200, 20, 20), 1.3f);
-        for (double angle = 0; angle < Math.PI * 2; angle += Math.PI / 16) {
+        Particle.DustOptions bright = new Particle.DustOptions(Color.fromRGB(255, 60, 60), 1.6f);
+        for (double angle = 0; angle < Math.PI * 2; angle += Math.PI / 32) {
             double x = Math.cos(angle) * REATSU_RADIUS;
             double z = Math.sin(angle) * REATSU_RADIUS;
             Location edge = center.clone().add(x, 0.1, z);
-            world.spawnParticle(Particle.REDSTONE, edge, 4, 0.2, 0.05, 0.2, ring);
+            world.spawnParticle(Particle.REDSTONE, edge, 10, 0.25, 0.08, 0.25, ring);
+            world.spawnParticle(Particle.REDSTONE, edge, 6, 0.15, 0.05, 0.15, bright);
+            world.spawnParticle(Particle.SMOKE_NORMAL, edge, 5, 0.2, 0.05, 0.2, 0.01);
         }
-        world.playSound(center, Sound.ENTITY_WITHER_SPAWN, 0.8f, 0.9f);
+        world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 1.2f, 0.7f);
+        world.playSound(center, Sound.ENTITY_WITHER_SPAWN, 1.0f, 0.9f);
 
         BukkitTask delay = new BukkitRunnable() {
             @Override
@@ -321,6 +325,10 @@ public class AdvancedBankaiAbility {
                     return;
                 }
                 ticks += 10;
+                if (ticks % 20 == 0) {
+                    world.playSound(center, Sound.ENTITY_ENDERMAN_SCREAM, 0.6f, 0.7f);
+                    world.playSound(center, Sound.ENTITY_PLAYER_HURT, 0.6f, 1.2f);
+                }
                 for (UUID uuid : affected) {
                     LivingEntity entity = (LivingEntity) Bukkit.getEntity(uuid);
                     if (entity == null || entity.isDead()) {
@@ -333,10 +341,15 @@ public class AdvancedBankaiAbility {
                         continue;
                     }
                     entity.damage(2.0, player);
-                    world.spawnParticle(Particle.REDSTONE, entity.getLocation().clone().add(0, 1.0, 0), 18, 0.5, 0.8, 0.5,
-                            new Particle.DustOptions(Color.fromRGB(220, 20, 20), 1.4f));
-                    world.spawnParticle(Particle.CRIT_MAGIC, entity.getLocation().clone().add(0, 1.2, 0), 10, 0.3, 0.4, 0.3,
-                            0.1);
+                    Location display = entity.getLocation().clone().add(0, 1.0, 0);
+                    Particle.DustOptions deepRed = new Particle.DustOptions(Color.fromRGB(220, 20, 20), 1.6f);
+                    Particle.DustOptions brightRed = new Particle.DustOptions(Color.fromRGB(255, 50, 50), 1.4f);
+                    world.spawnParticle(Particle.REDSTONE, display, 32, 0.6, 0.9, 0.6, deepRed);
+                    world.spawnParticle(Particle.REDSTONE, display, 20, 0.5, 0.7, 0.5, brightRed);
+                    world.spawnParticle(Particle.CRIT_MAGIC, display.clone().add(0, 0.2, 0), 24, 0.4, 0.6, 0.4, 0.05);
+                    world.spawnParticle(Particle.CRIT, display.clone().add(0, 0.2, 0), 18, 0.35, 0.45, 0.35, 0.02);
+                    world.spawnParticle(Particle.SMOKE_NORMAL, display, 16, 0.4, 0.5, 0.4, 0.02);
+                    world.spawnParticle(Particle.SMOKE_LARGE, display, 8, 0.35, 0.45, 0.35, 0.01);
                 }
             }
         }.runTaskTimer(plugin, 0L, 10L);
@@ -366,10 +379,14 @@ public class AdvancedBankaiAbility {
                 data.reatsuLockedPlayers.remove(targetPlayer.getUniqueId());
             }
         }
-        world.spawnParticle(Particle.EXPLOSION_LARGE, center, 3, 0.5, 0.5, 0.5, 0.0);
-        Particle.DustOptions burst = new Particle.DustOptions(Color.fromRGB(255, 40, 40), 1.6f);
-        world.spawnParticle(Particle.REDSTONE, center, 120, 2.0, 0.8, 2.0, burst);
-        world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 0.8f, 0.9f);
+        Particle.DustOptions burst = new Particle.DustOptions(Color.fromRGB(255, 40, 40), 1.8f);
+        Particle.DustOptions white = new Particle.DustOptions(Color.fromRGB(255, 255, 255), 1.4f);
+        world.spawnParticle(Particle.EXPLOSION_LARGE, center, 6, 0.8, 0.8, 0.8, 0.0);
+        world.spawnParticle(Particle.EXPLOSION_NORMAL, center, 30, 1.2, 0.9, 1.2, 0.1);
+        world.spawnParticle(Particle.REDSTONE, center, 200, 2.3, 1.0, 2.3, burst);
+        world.spawnParticle(Particle.REDSTONE, center, 120, 1.4, 0.8, 1.4, white);
+        world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 1.1f, 0.85f);
+        world.playSound(center, Sound.ENTITY_DRAGON_FIREBALL_EXPLODE, 1.0f, 1.0f);
     }
 
     private void beginStandCutscene(Player player, BankaiData data) {
@@ -405,15 +422,8 @@ public class AdvancedBankaiAbility {
         player.removePotionEffect(PotionEffectType.SLOW);
         player.removePotionEffect(PotionEffectType.BLINDNESS);
         player.removePotionEffect(PotionEffectType.DAMAGE_RESISTANCE);
-        AttributeInstance maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
-        if (maxHealth != null && data.standPreviousMaxHealth > 0) {
-            maxHealth.setBaseValue(data.standPreviousMaxHealth);
-            if (player.getHealth() > maxHealth.getBaseValue()) {
-                player.setHealth(maxHealth.getBaseValue());
-            }
-        }
         player.addPotionEffect(new PotionEffect(PotionEffectType.INCREASE_DAMAGE, 240, 0, false, false, true));
-        data.remainingSeconds = 15;
+        data.remainingSeconds = 20;
         data.timerLocked = true;
         sendTimerBar(player, data.remainingSeconds);
     }
@@ -558,6 +568,10 @@ public class AdvancedBankaiAbility {
             public void run() {
                 if (!player.isOnline()) {
                     endBankai(player, true);
+                    return;
+                }
+                if (data.standChanneling) {
+                    sendTimerBar(player, data.remainingSeconds);
                     return;
                 }
                 data.remainingSeconds--;
