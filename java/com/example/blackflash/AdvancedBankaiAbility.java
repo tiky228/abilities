@@ -304,7 +304,7 @@ public class AdvancedBankaiAbility {
             affected.add(entity.getUniqueId());
             entity.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 80, 6, false, false, true));
             entity.addPotionEffect(new PotionEffect(PotionEffectType.JUMP, 80, 250, false, false, true));
-            entity.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 80, 1, false, false, true));
+            entity.addPotionEffect(new PotionEffect(PotionEffectType.CONFUSION, 80, 1, false, false, true));
             if (entity instanceof Player targetPlayer) {
                 data.reatsuLockedPlayers.add(targetPlayer.getUniqueId());
             }
@@ -355,7 +355,7 @@ public class AdvancedBankaiAbility {
             }
             entity.removePotionEffect(PotionEffectType.SLOW);
             entity.removePotionEffect(PotionEffectType.JUMP);
-            entity.removePotionEffect(PotionEffectType.NAUSEA);
+            entity.removePotionEffect(PotionEffectType.CONFUSION);
             Vector knockback = entity.getLocation().toVector().subtract(center.toVector()).normalize().multiply(1.2);
             knockback.setY(0.55);
             if (!Double.isNaN(knockback.length())) {
@@ -819,9 +819,8 @@ public class AdvancedBankaiAbility {
         player.removePotionEffect(PotionEffectType.NIGHT_VISION);
         player.removePotionEffect(PotionEffectType.SLOW);
         player.removePotionEffect(PotionEffectType.BLINDNESS);
-        player.removePotionEffect(PotionEffectType.RESISTANCE);
         player.removePotionEffect(PotionEffectType.DAMAGE_RESISTANCE);
-        player.removePotionEffect(PotionEffectType.NAUSEA);
+        player.removePotionEffect(PotionEffectType.CONFUSION);
         player.removePotionEffect(PotionEffectType.REGENERATION);
         player.removePotionEffect(PotionEffectType.INCREASE_DAMAGE);
         player.removePotionEffect(PotionEffectType.JUMP);
@@ -839,7 +838,7 @@ public class AdvancedBankaiAbility {
             if (target != null) {
                 target.removePotionEffect(PotionEffectType.SLOW);
                 target.removePotionEffect(PotionEffectType.JUMP);
-                target.removePotionEffect(PotionEffectType.NAUSEA);
+                target.removePotionEffect(PotionEffectType.CONFUSION);
                 target.removePotionEffect(PotionEffectType.BLINDNESS);
             }
         }
