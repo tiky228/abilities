@@ -28,12 +28,13 @@ public class BlackFlashPlugin extends JavaPlugin {
         this.bankaiItemKey = new NamespacedKey(this, "bankai_item");
         this.gojoAwakeningItemKey = new NamespacedKey(this, "gojo_awakening_item");
 
-        this.blackFlashAbility = new BlackFlashAbility(this, blackFlashAxeKey, abilityRestrictionManager);
+        this.gojoAwakeningAbility = new GojoAwakeningAbility(this, gojoAwakeningItemKey, abilityRestrictionManager);
+        this.blackFlashAbility = new BlackFlashAbility(this, blackFlashAxeKey, abilityRestrictionManager,
+                gojoAwakeningAbility);
         this.reverseCursedTechniqueAbility = new ReverseCursedTechniqueAbility(this, reverseTechniqueItemKey,
                 abilityRestrictionManager);
         this.blackCoffinAbility = new BlackCoffinAbility(this, hadoItemKey, abilityRestrictionManager);
         this.bankaiAbility = new AdvancedBankaiAbility(this, bankaiItemKey, abilityRestrictionManager);
-        this.gojoAwakeningAbility = new GojoAwakeningAbility(this, gojoAwakeningItemKey, abilityRestrictionManager);
         getServer().getPluginManager().registerEvents(new BlackFlashListener(blackFlashAbility), this);
         getServer().getPluginManager()
                 .registerEvents(new ReverseCursedTechniqueListener(reverseCursedTechniqueAbility), this);
