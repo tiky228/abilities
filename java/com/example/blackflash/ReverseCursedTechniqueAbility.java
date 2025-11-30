@@ -27,6 +27,7 @@ public class ReverseCursedTechniqueAbility {
     private static final int PENALTY_SECONDS = 5;
     private static final int PARTICLE_INTERVAL_TICKS = 4;
     private static final int HEALTH_CHECK_TICKS = 10;
+    private static final int REGENERATION_AMPLIFIER = 4; // Regeneration V
 
     private final BlackFlashPlugin plugin;
     private final NamespacedKey itemKey;
@@ -116,7 +117,8 @@ public class ReverseCursedTechniqueAbility {
     }
 
     private void applyRegeneration(Player player) {
-        player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, Integer.MAX_VALUE, 4, false, false, true));
+        player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, Integer.MAX_VALUE, REGENERATION_AMPLIFIER,
+                false, false, true));
     }
 
     private BukkitTask startParticleTask(Player player, UUID id) {

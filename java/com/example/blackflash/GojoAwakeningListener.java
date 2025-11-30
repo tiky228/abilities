@@ -15,10 +15,15 @@ public class GojoAwakeningListener implements Listener {
 
     private final GojoAwakeningAbility ability;
     private final AbilityRestrictionManager restrictionManager;
+    private final LapseBlueAbility lapseBlueAbility;
+    private final ReverseRedAbility reverseRedAbility;
 
-    public GojoAwakeningListener(GojoAwakeningAbility ability, AbilityRestrictionManager restrictionManager) {
+    public GojoAwakeningListener(GojoAwakeningAbility ability, AbilityRestrictionManager restrictionManager,
+            LapseBlueAbility lapseBlueAbility, ReverseRedAbility reverseRedAbility) {
         this.ability = ability;
         this.restrictionManager = restrictionManager;
+        this.lapseBlueAbility = lapseBlueAbility;
+        this.reverseRedAbility = reverseRedAbility;
     }
 
     @EventHandler
@@ -41,6 +46,18 @@ public class GojoAwakeningListener implements Listener {
                 return;
             }
             ability.tryActivate(player);
+            event.setCancelled(true);
+            return;
+        }
+
+        if (lapseBlueAbility != null && lapseBlueAbility.isAbilityItem(event.getItem())) {
+            lapseBlueAbility.tryActivate(player);
+            event.setCancelled(true);
+            return;
+        }
+
+        if (reverseRedAbility != null && reverseRedAbility.isAbilityItem(event.getItem())) {
+            reverseRedAbility.tryActivate(player);
             event.setCancelled(true);
         }
     }

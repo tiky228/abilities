@@ -39,6 +39,7 @@ public class BlackFlashAbility {
     private static final int MISS_COOLDOWN_SECONDS = 30;
     private static final int AWAKENING_EXTENSION_SECONDS = 5;
     private static final int DURATION_REDUCTION_TICKS = 20; // Subtract 1 second from each base duration
+    private static final int REGENERATION_AMPLIFIER = 1; // Regeneration II
 
     private static final int BASE_NAUSEA_TICKS = 120; // 6 seconds
     private static final int BASE_WEAKNESS_TICKS = 200; // 10 seconds
@@ -227,7 +228,8 @@ public class BlackFlashAbility {
 
     private void applyPositiveEffects(Player player) {
         player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 10 * 20, 0, false, true, true));
-        player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 5 * 20, 1, false, true, true));
+        player.addPotionEffect(
+                new PotionEffect(PotionEffectType.REGENERATION, 5 * 20, REGENERATION_AMPLIFIER, false, true, true));
     }
 
     private void spawnBlackFlashEffects(Player player, LivingEntity target) {
@@ -258,5 +260,15 @@ public class BlackFlashAbility {
     private void handleAwakeningMiss(Player player) {
         awakeningDisabled.add(player.getUniqueId());
         player.sendMessage(ChatColor.RED + "Black Flash slips away! It cannot be used again until awakening ends.");
+    }
+
+    public void onAwakeningEnd(Player player) {
+        UUID id = player.getUniqueId();
+        awakeningDisabled.remove(id);
+        Attempt attempt = activeAttempts.remove(id);
+        if (attempt != null) {
+            attempt.windowTask.cancel();
+            removeStrength(player);
+        }
     }
 }
