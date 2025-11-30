@@ -379,8 +379,8 @@ public class GojoAwakeningAbility {
         restrictionManager.setFrozenByGojo(player, false);
         Set<UUID> frozen = pendingFreezes.remove(id);
         if (frozen != null) {
-            for (UUID id : frozen) {
-                Player frozenPlayer = plugin.getServer().getPlayer(id);
+            for (UUID frozenId : frozen) {
+                Player frozenPlayer = plugin.getServer().getPlayer(frozenId);
                 if (frozenPlayer != null) {
                     restrictionManager.setFrozenByGojo(frozenPlayer, false);
                 }
