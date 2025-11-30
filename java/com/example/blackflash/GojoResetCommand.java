@@ -15,16 +15,21 @@ public class GojoResetCommand implements CommandExecutor {
     private final ReverseCursedTechniqueAbility reverseCursedTechniqueAbility;
     private final LapseBlueAbility lapseBlueAbility;
     private final ReverseRedAbility reverseRedAbility;
+    private final TeleportStrikeAbility teleportStrikeAbility;
+    private final LapseBlueArmsAbility lapseBlueArmsAbility;
     private final AbilityRestrictionManager restrictionManager;
 
     public GojoResetCommand(GojoAwakeningAbility gojoAwakeningAbility, BlackFlashAbility blackFlashAbility,
             ReverseCursedTechniqueAbility reverseCursedTechniqueAbility, LapseBlueAbility lapseBlueAbility,
-            ReverseRedAbility reverseRedAbility, AbilityRestrictionManager restrictionManager) {
+            ReverseRedAbility reverseRedAbility, TeleportStrikeAbility teleportStrikeAbility,
+            LapseBlueArmsAbility lapseBlueArmsAbility, AbilityRestrictionManager restrictionManager) {
         this.gojoAwakeningAbility = gojoAwakeningAbility;
         this.blackFlashAbility = blackFlashAbility;
         this.reverseCursedTechniqueAbility = reverseCursedTechniqueAbility;
         this.lapseBlueAbility = lapseBlueAbility;
         this.reverseRedAbility = reverseRedAbility;
+        this.teleportStrikeAbility = teleportStrikeAbility;
+        this.lapseBlueArmsAbility = lapseBlueArmsAbility;
         this.restrictionManager = restrictionManager;
     }
 
@@ -46,6 +51,8 @@ public class GojoResetCommand implements CommandExecutor {
         reverseCursedTechniqueAbility.clearState(player);
         lapseBlueAbility.clearState(player);
         reverseRedAbility.clearState(player);
+        teleportStrikeAbility.clearState(player);
+        lapseBlueArmsAbility.clearState(player);
         restrictionManager.setFrozenByGojo(player, false);
         removeGojoItems(player.getInventory());
     }
@@ -84,6 +91,7 @@ public class GojoResetCommand implements CommandExecutor {
     private boolean isGojoItem(ItemStack itemStack) {
         return gojoAwakeningAbility.isAbilityItem(itemStack) || blackFlashAbility.isBlackFlashAxe(itemStack)
                 || reverseCursedTechniqueAbility.isAbilityItem(itemStack) || lapseBlueAbility.isAbilityItem(itemStack)
-                || reverseRedAbility.isAbilityItem(itemStack);
+                || reverseRedAbility.isAbilityItem(itemStack) || teleportStrikeAbility.isAbilityItem(itemStack)
+                || lapseBlueArmsAbility.isAbilityItem(itemStack);
     }
 }
