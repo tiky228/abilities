@@ -27,9 +27,9 @@ public class ReverseRedAbility {
 
     private static final int COOLDOWN_SECONDS = 20;
     private static final int CHARGE_TICKS = 20;
-    private static final int MAX_TRAVEL_TICKS = 20;
-    private static final double STEP_DISTANCE = 2.3;
-    private static final double HIT_RADIUS = 0.95;
+    private static final int MAX_TRAVEL_TICKS = 22;
+    private static final double STEP_DISTANCE = 4.8;
+    private static final double HIT_RADIUS = 0.75;
     private static final double DAMAGE = 14.0;
     private static final double KNOCKBACK = 1.6;
 
@@ -106,7 +106,7 @@ public class ReverseRedAbility {
                     cleanup(id, handle[0]);
                     return;
                 }
-                spawnSphere(origin, 0.65f);
+                spawnSphere(origin, 0.45f);
                 if (++ticks >= CHARGE_TICKS) {
                     cancel();
                     cleanup(id, handle[0]);
@@ -122,6 +122,7 @@ public class ReverseRedAbility {
     private void launchProjectile(Player player, Location current, Vector direction) {
         UUID id = player.getUniqueId();
         BukkitTask[] handle = new BukkitTask[1];
+        Vector[] adjustedDirection = { direction.normalize() };
         BukkitRunnable runnable = new BukkitRunnable() {
             int ticks = 0;
 
@@ -132,8 +133,12 @@ public class ReverseRedAbility {
                     cleanup(id, handle[0]);
                     return;
                 }
-                current.add(direction.clone().multiply(STEP_DISTANCE));
-                spawnSphere(current, 0.9f);
+                Vector facing = player.getLocation().getDirection();
+                if (facing.lengthSquared() > 1.0e-4) {
+                    adjustedDirection[0] = facing.normalize();
+                }
+                current.add(adjustedDirection[0].clone().multiply(STEP_DISTANCE));
+                spawnSphere(current, 0.6f);
                 if (hitSolidBlock(current)) {
                     cancel();
                     cleanup(id, handle[0]);
@@ -175,15 +180,15 @@ public class ReverseRedAbility {
         Vector knockback = target.getLocation().toVector().subtract(origin.toVector()).normalize().multiply(KNOCKBACK);
         knockback.setY(Math.max(0.5, knockback.getY()));
         target.setVelocity(knockback);
-        spawnSphere(origin, 1.2f);
+        spawnSphere(origin, 0.9f);
         origin.getWorld().playSound(origin, Sound.ENTITY_GENERIC_EXPLODE, 1.2f, 1.0f);
     }
 
     private void spawnSphere(Location center, float size) {
-        center.getWorld().spawnParticle(Particle.REDSTONE, center, 28, size * 0.3, size * 0.3, size * 0.3, 0.02,
+        center.getWorld().spawnParticle(Particle.REDSTONE, center, 14, size * 0.22, size * 0.22, size * 0.22, 0.0,
                 new Particle.DustOptions(Color.fromRGB(255, 40, 40), size));
-        center.getWorld().spawnParticle(Particle.CRIT_MAGIC, center, 12, 0.25, 0.25, 0.25, 0.01);
-        center.getWorld().spawnParticle(Particle.FLAME, center, 10, 0.18, 0.18, 0.18, 0.0);
+        center.getWorld().spawnParticle(Particle.CRIT_MAGIC, center, 5, 0.16, 0.16, 0.16, 0.0);
+        center.getWorld().spawnParticle(Particle.FLAME, center, 6, 0.12, 0.12, 0.12, 0.0);
     }
 
     private boolean isActive(Player player) {
