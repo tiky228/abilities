@@ -1,0 +1,289 @@
+package com.example.blackflash;
+
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.bukkit.ChatColor;
+import org.bukkit.Color;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
+import org.bukkit.World;
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.Vector;
+
+public class CeroOscurasAbility {
+
+    public enum CeroVariant {
+        RED(ChatColor.DARK_RED + "Cero Oscuras (Red)", Color.fromRGB(170, 20, 20), Color.fromRGB(10, 10, 10)),
+        BLUE(ChatColor.AQUA + "Cero Oscuras (Blue)", Color.fromRGB(40, 120, 235), Color.fromRGB(235, 245, 255)),
+        GREEN(ChatColor.GREEN + "Cero Oscuras (Green)", Color.fromRGB(40, 200, 90), Color.fromRGB(200, 255, 210)),
+        CYAN(ChatColor.DARK_AQUA + "Cero Oscuras (Cyan)", Color.fromRGB(20, 200, 220), Color.fromRGB(235, 255, 255));
+
+        private final String displayName;
+        private final Color primary;
+        private final Color secondary;
+
+        CeroVariant(String displayName, Color primary, Color secondary) {
+            this.displayName = displayName;
+            this.primary = primary;
+            this.secondary = secondary;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        public Color getPrimary() {
+            return primary;
+        }
+
+        public Color getSecondary() {
+            return secondary;
+        }
+    }
+
+    private static final int CERO_COOLDOWN_SECONDS = 12;
+    private static final double BEAM_LENGTH = 16.0;
+    private static final double BEAM_RADIUS = 1.5;
+    private static final int BEAM_DURATION_TICKS = 36;
+    private static final int DAMAGE_INTERVAL_TICKS = 5;
+    private static final double DAMAGE = 6.0;
+
+    private final BlackFlashPlugin plugin;
+    private final AbilityRestrictionManager restrictionManager;
+    private final Map<CeroVariant, NamespacedKey> ceroKeys = new EnumMap<>(CeroVariant.class);
+    private final CooldownManager ceroCooldown = new CooldownManager();
+    private final Map<UUID, List<CeroBeam>> activeBeams = new HashMap<>();
+
+    public CeroOscurasAbility(BlackFlashPlugin plugin, AbilityRestrictionManager restrictionManager,
+            NamespacedKey redKey, NamespacedKey blueKey, NamespacedKey greenKey, NamespacedKey cyanKey) {
+        this.plugin = plugin;
+        this.restrictionManager = restrictionManager;
+        this.ceroKeys.put(CeroVariant.RED, redKey);
+        this.ceroKeys.put(CeroVariant.BLUE, blueKey);
+        this.ceroKeys.put(CeroVariant.GREEN, greenKey);
+        this.ceroKeys.put(CeroVariant.CYAN, cyanKey);
+    }
+
+    public ItemStack createCeroItem(CeroVariant variant) {
+        ItemStack stack = new ItemStack(Material.BLACK_DYE);
+        ItemMeta meta = stack.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(variant.getDisplayName());
+            meta.setLore(java.util.Arrays.asList(ChatColor.GRAY + "Fire a massive fixed beam.",
+                    ChatColor.RED + "Right-click to unleash."));
+            meta.getPersistentDataContainer().set(ceroKeys.get(variant), PersistentDataType.INTEGER, 1);
+            stack.setItemMeta(meta);
+        }
+        return stack;
+    }
+
+    public boolean isCeroItem(ItemStack stack, CeroVariant variant) {
+        if (stack == null || !stack.hasItemMeta()) {
+            return false;
+        }
+        ItemMeta meta = stack.getItemMeta();
+        if (meta == null) {
+            return false;
+        }
+        return meta.getPersistentDataContainer().has(ceroKeys.get(variant), PersistentDataType.INTEGER);
+    }
+
+    public void tryActivateCero(Player player, CeroVariant variant) {
+        UUID id = player.getUniqueId();
+        if (!restrictionManager.canUseAbility(player)) {
+            player.sendMessage(ChatColor.RED + "You cannot use abilities right now.");
+            return;
+        }
+        if (!ceroCooldown.isReady(id)) {
+            player.sendMessage(ChatColor.YELLOW + "Cero Oscuras cooling down for " + ceroCooldown.getRemainingSeconds(id)
+                    + "s.");
+            return;
+        }
+        ceroCooldown.setCooldown(id, CERO_COOLDOWN_SECONDS);
+        fireBeam(player, variant);
+    }
+
+    private void fireBeam(Player player, CeroVariant variant) {
+        Location origin = player.getEyeLocation();
+        Vector direction = origin.getDirection().normalize();
+        player.getWorld().playSound(origin, Sound.ENTITY_GHAST_SCREAM, 1.4f, 1.35f);
+        player.getWorld().playSound(origin, Sound.BLOCK_BEACON_ACTIVATE, 0.9f, 1.45f);
+        player.sendMessage(ChatColor.GRAY + "Cero Oscuras unleashed!");
+
+        CeroBeam beam = new CeroBeam(origin, direction, variant);
+        activeBeams.computeIfAbsent(player.getUniqueId(), k -> new java.util.ArrayList<>()).add(beam);
+        BukkitTask task = new BukkitRunnable() {
+            int ticks = 0;
+
+            @Override
+            public void run() {
+                if (ticks >= BEAM_DURATION_TICKS) {
+                    beam.finish();
+                    removeBeam(player, beam);
+                    cancel();
+                    return;
+                }
+                spawnBeamParticles(beam, ticks == 0);
+                if (ticks % DAMAGE_INTERVAL_TICKS == 0) {
+                    applyDamage(beam, player);
+                }
+                if (ticks % 8 == 0) {
+                    player.getWorld().playSound(origin, Sound.BLOCK_BEACON_AMBIENT, 0.6f, 1.6f);
+                }
+                ticks++;
+            }
+        }.runTaskTimer(plugin, 0L, 1L);
+        beam.setTask(task);
+    }
+
+    private void spawnBeamParticles(CeroBeam beam, boolean firstTick) {
+        World world = beam.origin.getWorld();
+        if (world == null) {
+            return;
+        }
+        Particle.DustOptions primary = new Particle.DustOptions(beam.variant.getPrimary(), 1.5f);
+        Particle.DustOptions secondary = new Particle.DustOptions(beam.variant.getSecondary(), 1.1f);
+
+        Vector dir = beam.direction;
+        Vector right = dir.clone().crossProduct(new Vector(0, 1, 0));
+        if (right.lengthSquared() < 1e-4) {
+            right = dir.clone().crossProduct(new Vector(1, 0, 0));
+        }
+        right.normalize();
+        Vector up = right.clone().crossProduct(dir).normalize();
+
+        double step = 0.7;
+        for (double dist = 0; dist <= BEAM_LENGTH; dist += step) {
+            Location center = beam.origin.clone().add(dir.clone().multiply(dist));
+            world.spawnParticle(Particle.REDSTONE, center, 5, 0.08, 0.08, 0.08, primary);
+            world.spawnParticle(Particle.SONIC_BOOM, center, firstTick ? 1 : 0, 0.0, 0.0, 0.0, 0.0);
+            for (int i = 0; i < 14; i++) {
+                double angle = (Math.PI * 2 / 14) * i;
+                double cos = Math.cos(angle);
+                double sin = Math.sin(angle);
+                Vector offset = right.clone().multiply(cos * BEAM_RADIUS).add(up.clone().multiply(sin * BEAM_RADIUS));
+                Location edge = center.clone().add(offset);
+                world.spawnParticle(Particle.REDSTONE, edge, 1, 0.03, 0.03, 0.03, secondary);
+                if (i % 3 == 0) {
+                    Vector innerOffset = offset.clone().multiply(0.6);
+                    Location inner = center.clone().add(innerOffset);
+                    world.spawnParticle(Particle.REDSTONE, inner, 1, 0.02, 0.02, 0.02, primary);
+                }
+            }
+            if (firstTick) {
+                world.spawnParticle(Particle.CLOUD, center, 6, 0.2, 0.2, 0.2, 0.0);
+            }
+        }
+    }
+
+    private void applyDamage(CeroBeam beam, Player owner) {
+        World world = owner.getWorld();
+        double maxDistance = BEAM_LENGTH + BEAM_RADIUS + 1;
+        for (LivingEntity entity : world.getNearbyLivingEntities(beam.origin, maxDistance)) {
+            if (entity.equals(owner)) {
+                continue;
+            }
+            if (!beam.isInside(entity.getLocation())) {
+                continue;
+            }
+            beam.tryDamage(entity, owner);
+        }
+    }
+
+    public void clearAll() {
+        for (List<CeroBeam> beams : activeBeams.values()) {
+            for (CeroBeam beam : beams) {
+                beam.finish();
+            }
+        }
+        activeBeams.clear();
+        ceroCooldown.clearAll();
+    }
+
+    public void clearPlayer(Player player) {
+        List<CeroBeam> beams = activeBeams.remove(player.getUniqueId());
+        if (beams != null) {
+            for (CeroBeam beam : beams) {
+                beam.finish();
+            }
+        }
+        ceroCooldown.clear(player.getUniqueId());
+    }
+
+    private void removeBeam(Player player, CeroBeam beam) {
+        List<CeroBeam> beams = activeBeams.get(player.getUniqueId());
+        if (beams == null) {
+            return;
+        }
+        beams.remove(beam);
+        if (beams.isEmpty()) {
+            activeBeams.remove(player.getUniqueId());
+        }
+    }
+
+    private class CeroBeam {
+        private final Location origin;
+        private final Vector direction;
+        private final CeroVariant variant;
+        private final Map<UUID, Integer> lastDamage = new HashMap<>();
+        private BukkitTask task;
+
+        CeroBeam(Location origin, Vector direction, CeroVariant variant) {
+            this.origin = origin.clone();
+            this.direction = direction.clone();
+            this.variant = variant;
+        }
+
+        void setTask(BukkitTask task) {
+            this.task = task;
+        }
+
+        boolean isInside(Location location) {
+            Vector toTarget = location.toVector().subtract(origin.toVector());
+            double projection = toTarget.dot(direction);
+            if (projection < 0 || projection > BEAM_LENGTH) {
+                return false;
+            }
+            Vector closest = direction.clone().multiply(projection);
+            double distance = toTarget.subtract(closest).length();
+            return distance <= BEAM_RADIUS + 0.3;
+        }
+
+        void tryDamage(LivingEntity entity, Player owner) {
+            int currentTick = owner.getServer().getCurrentTick();
+            Integer last = lastDamage.get(entity.getUniqueId());
+            if (last != null && currentTick - last < DAMAGE_INTERVAL_TICKS) {
+                return;
+            }
+            lastDamage.put(entity.getUniqueId(), currentTick);
+            entity.damage(DAMAGE, owner);
+            Vector push = direction.clone().multiply(0.45);
+            push.setY(0.2);
+            entity.setVelocity(entity.getVelocity().add(push));
+        }
+
+        void finish() {
+            if (task != null) {
+                task.cancel();
+            }
+            World world = origin.getWorld();
+            if (world != null) {
+                world.playSound(origin, Sound.BLOCK_BEACON_DEACTIVATE, 0.8f, 1.2f);
+                world.playSound(origin, Sound.ENTITY_ENDER_DRAGON_FLAP, 0.4f, 0.6f);
+            }
+        }
+    }
+}

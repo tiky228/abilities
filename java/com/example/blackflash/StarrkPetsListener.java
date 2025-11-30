@@ -10,12 +10,12 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
-public class CoyoteStarrkListener implements Listener {
+public class StarrkPetsListener implements Listener {
 
-    private final CoyoteStarrkAbility ability;
+    private final StarrkPetsAbility petsAbility;
 
-    public CoyoteStarrkListener(CoyoteStarrkAbility ability) {
-        this.ability = ability;
+    public StarrkPetsListener(StarrkPetsAbility petsAbility) {
+        this.petsAbility = petsAbility;
     }
 
     @EventHandler
@@ -25,17 +25,9 @@ public class CoyoteStarrkListener implements Listener {
             return;
         }
         Player player = event.getPlayer();
-        if (ability.isPetsItem(event.getItem())) {
-            ability.tryActivatePets(player);
+        if (petsAbility.isPetsItem(event.getItem())) {
+            petsAbility.tryActivatePets(player);
             event.setCancelled(true);
-            return;
-        }
-        for (CoyoteStarrkAbility.CeroVariant variant : CoyoteStarrkAbility.CeroVariant.values()) {
-            if (ability.isCeroItem(event.getItem(), variant)) {
-                ability.tryActivateCero(player, variant);
-                event.setCancelled(true);
-                return;
-            }
         }
     }
 
@@ -46,20 +38,20 @@ public class CoyoteStarrkListener implements Listener {
         if (!(damager instanceof LivingEntity livingDamager)) {
             return;
         }
-        if (!ability.isStarrkWolf(livingDamager)) {
+        if (!petsAbility.isStarrkWolf(livingDamager)) {
             return;
         }
-        if (victim instanceof Player player && ability.isWolfOwner(livingDamager, player)) {
+        if (victim instanceof Player player && petsAbility.isWolfOwner(livingDamager, player)) {
             event.setCancelled(true);
             return;
         }
-        if (victim instanceof LivingEntity livingVictim && ability.isStarrkWolf(livingVictim)) {
+        if (victim instanceof LivingEntity livingVictim && petsAbility.isStarrkWolf(livingVictim)) {
             event.setCancelled(true);
         }
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        ability.clearPlayer(event.getPlayer());
+        petsAbility.clearPlayer(event.getPlayer());
     }
 }

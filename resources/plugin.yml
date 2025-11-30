@@ -27,3 +27,18 @@ commands:
   givestarrk:
     description: Give Starrk abilities
     usage: /givestarrk
+  starrkpets:
+    description: Gives the Starrk Pets ability item
+    usage: /starrkpets
+  ceror:
+    description: Gives red Cero Oscuras
+    usage: /ceror
+  cerob:
+    description: Gives blue Cero Oscuras
+    usage: /cerob
+  cerog:
+    description: Gives green Cero Oscuras
+    usage: /cerog
+  ceroc:
+    description: Gives cyan Cero Oscuras
+    usage: /ceroc

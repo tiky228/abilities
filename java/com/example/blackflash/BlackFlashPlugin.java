@@ -16,7 +16,8 @@ public class BlackFlashPlugin extends JavaPlugin {
     private ReverseRedAbility reverseRedAbility;
     private TeleportStrikeAbility teleportStrikeAbility;
     private LapseBlueArmsAbility lapseBlueArmsAbility;
-    private CoyoteStarrkAbility coyoteStarrkAbility;
+    private StarrkPetsAbility starrkPetsAbility;
+    private CeroOscurasAbility ceroOscurasAbility;
     private AbilityRestrictionManager abilityRestrictionManager;
     private NamespacedKey blackFlashAxeKey;
     private NamespacedKey reverseTechniqueItemKey;
@@ -66,8 +67,10 @@ public class BlackFlashPlugin extends JavaPlugin {
                 gojoAwakeningAbility);
         this.lapseBlueArmsAbility = new LapseBlueArmsAbility(this, lapseBlueArmsItemKey, abilityRestrictionManager,
                 gojoAwakeningAbility);
-        this.coyoteStarrkAbility = new CoyoteStarrkAbility(this, abilityRestrictionManager, starrkPetsItemKey,
-                ceroRedItemKey, ceroBlueItemKey, ceroGreenItemKey, ceroCyanItemKey, starrkWolfKey);
+        this.starrkPetsAbility = new StarrkPetsAbility(this, abilityRestrictionManager, starrkPetsItemKey,
+                starrkWolfKey);
+        this.ceroOscurasAbility = new CeroOscurasAbility(this, abilityRestrictionManager, ceroRedItemKey,
+                ceroBlueItemKey, ceroGreenItemKey, ceroCyanItemKey);
         this.gojoAwakeningAbility.setAbilityHooks(blackFlashAbility, reverseCursedTechniqueAbility, lapseBlueAbility,
                 reverseRedAbility, teleportStrikeAbility, lapseBlueArmsAbility);
         this.blackCoffinAbility = new BlackCoffinAbility(this, hadoItemKey, abilityRestrictionManager);
@@ -81,7 +84,8 @@ public class BlackFlashPlugin extends JavaPlugin {
                 new GojoAwakeningListener(gojoAwakeningAbility, abilityRestrictionManager, lapseBlueAbility,
                         reverseRedAbility, teleportStrikeAbility, lapseBlueArmsAbility),
                 this);
-        getServer().getPluginManager().registerEvents(new CoyoteStarrkListener(coyoteStarrkAbility), this);
+        getServer().getPluginManager().registerEvents(new StarrkPetsListener(starrkPetsAbility), this);
+        getServer().getPluginManager().registerEvents(new CeroOscurasListener(ceroOscurasAbility), this);
         registerCommands();
         getLogger().info("Black Flash and Reverse Cursed Technique abilities loaded.");
     }
@@ -114,8 +118,11 @@ public class BlackFlashPlugin extends JavaPlugin {
         if (lapseBlueArmsAbility != null) {
             lapseBlueArmsAbility.clearAll();
         }
-        if (coyoteStarrkAbility != null) {
-            coyoteStarrkAbility.clearAll();
+        if (starrkPetsAbility != null) {
+            starrkPetsAbility.clearAll();
+        }
+        if (ceroOscurasAbility != null) {
+            ceroOscurasAbility.clearAll();
         }
         if (abilityRestrictionManager != null) {
             abilityRestrictionManager.clearAll();
@@ -177,9 +184,44 @@ public class BlackFlashPlugin extends JavaPlugin {
 
         PluginCommand starrkCommand = getCommand("givestarrk");
         if (starrkCommand != null) {
-            starrkCommand.setExecutor(new GiveStarrkCommand(coyoteStarrkAbility));
+            starrkCommand.setExecutor(new GiveStarrkCommand(starrkPetsAbility, ceroOscurasAbility));
         } else {
             getLogger().warning("Failed to register /givestarrk command.");
+        }
+
+        PluginCommand starrkPetsCommand = getCommand("starrkpets");
+        if (starrkPetsCommand != null) {
+            starrkPetsCommand.setExecutor(new StarrkPetsCommand(starrkPetsAbility));
+        } else {
+            getLogger().warning("Failed to register /starrkpets command.");
+        }
+
+        PluginCommand ceroRedCommand = getCommand("ceror");
+        if (ceroRedCommand != null) {
+            ceroRedCommand.setExecutor(new CeroCommand(ceroOscurasAbility, CeroOscurasAbility.CeroVariant.RED));
+        } else {
+            getLogger().warning("Failed to register /ceror command.");
+        }
+
+        PluginCommand ceroBlueCommand = getCommand("cerob");
+        if (ceroBlueCommand != null) {
+            ceroBlueCommand.setExecutor(new CeroCommand(ceroOscurasAbility, CeroOscurasAbility.CeroVariant.BLUE));
+        } else {
+            getLogger().warning("Failed to register /cerob command.");
+        }
+
+        PluginCommand ceroGreenCommand = getCommand("cerog");
+        if (ceroGreenCommand != null) {
+            ceroGreenCommand.setExecutor(new CeroCommand(ceroOscurasAbility, CeroOscurasAbility.CeroVariant.GREEN));
+        } else {
+            getLogger().warning("Failed to register /cerog command.");
+        }
+
+        PluginCommand ceroCyanCommand = getCommand("ceroc");
+        if (ceroCyanCommand != null) {
+            ceroCyanCommand.setExecutor(new CeroCommand(ceroOscurasAbility, CeroOscurasAbility.CeroVariant.CYAN));
+        } else {
+            getLogger().warning("Failed to register /ceroc command.");
         }
     }
 
