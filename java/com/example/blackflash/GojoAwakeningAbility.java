@@ -46,6 +46,8 @@ public class GojoAwakeningAbility {
     private ReverseCursedTechniqueAbility reverseCursedTechniqueAbility;
     private LapseBlueAbility lapseBlueAbility;
     private ReverseRedAbility reverseRedAbility;
+    private TeleportStrikeAbility teleportStrikeAbility;
+    private LapseBlueArmsAbility lapseBlueArmsAbility;
 
     public GojoAwakeningAbility(BlackFlashPlugin plugin, NamespacedKey itemKey,
             AbilityRestrictionManager restrictionManager) {
@@ -56,11 +58,14 @@ public class GojoAwakeningAbility {
 
     public void setAbilityHooks(BlackFlashAbility blackFlashAbility,
             ReverseCursedTechniqueAbility reverseCursedTechniqueAbility, LapseBlueAbility lapseBlueAbility,
-            ReverseRedAbility reverseRedAbility) {
+            ReverseRedAbility reverseRedAbility, TeleportStrikeAbility teleportStrikeAbility,
+            LapseBlueArmsAbility lapseBlueArmsAbility) {
         this.blackFlashAbility = blackFlashAbility;
         this.reverseCursedTechniqueAbility = reverseCursedTechniqueAbility;
         this.lapseBlueAbility = lapseBlueAbility;
         this.reverseRedAbility = reverseRedAbility;
+        this.teleportStrikeAbility = teleportStrikeAbility;
+        this.lapseBlueArmsAbility = lapseBlueArmsAbility;
     }
 
     public ItemStack createItem() {
@@ -281,6 +286,12 @@ public class GojoAwakeningAbility {
         if (blackFlashAbility != null) {
             blackFlashAbility.onAwakeningEnd(player);
         }
+        if (teleportStrikeAbility != null) {
+            teleportStrikeAbility.clearState(player);
+        }
+        if (lapseBlueArmsAbility != null) {
+            lapseBlueArmsAbility.clearState(player);
+        }
         if (!silent && player.isOnline()) {
             player.sendMessage(ChatColor.GRAY + "Your limitless focus fades.");
         }
@@ -356,7 +367,13 @@ public class GojoAwakeningAbility {
             player.getInventory().setItem(slot++, lapseBlueAbility.createItem());
         }
         if (reverseRedAbility != null) {
-            player.getInventory().setItem(slot, reverseRedAbility.createItem());
+            player.getInventory().setItem(slot++, reverseRedAbility.createItem());
+        }
+        if (teleportStrikeAbility != null) {
+            player.getInventory().setItem(slot++, teleportStrikeAbility.createItem());
+        }
+        if (lapseBlueArmsAbility != null) {
+            player.getInventory().setItem(slot, lapseBlueArmsAbility.createItem());
         }
     }
 

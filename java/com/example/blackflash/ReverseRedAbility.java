@@ -138,6 +138,7 @@ public class ReverseRedAbility {
         UUID id = player.getUniqueId();
         BukkitTask[] handle = new BukkitTask[1];
         Vector[] adjustedDirection = { direction.normalize() };
+        double stepDistance = enhanced ? ENHANCED_STEP_DISTANCE : STEP_DISTANCE;
         BukkitRunnable runnable = new BukkitRunnable() {
             int ticks = 0;
             boolean hitTarget = false;

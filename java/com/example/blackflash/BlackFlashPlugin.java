@@ -14,6 +14,8 @@ public class BlackFlashPlugin extends JavaPlugin {
     private GojoAwakeningAbility gojoAwakeningAbility;
     private LapseBlueAbility lapseBlueAbility;
     private ReverseRedAbility reverseRedAbility;
+    private TeleportStrikeAbility teleportStrikeAbility;
+    private LapseBlueArmsAbility lapseBlueArmsAbility;
     private AbilityRestrictionManager abilityRestrictionManager;
     private NamespacedKey blackFlashAxeKey;
     private NamespacedKey reverseTechniqueItemKey;
@@ -22,6 +24,8 @@ public class BlackFlashPlugin extends JavaPlugin {
     private NamespacedKey gojoAwakeningItemKey;
     private NamespacedKey lapseBlueItemKey;
     private NamespacedKey reverseRedItemKey;
+    private NamespacedKey teleportStrikeItemKey;
+    private NamespacedKey lapseBlueArmsItemKey;
 
     @Override
     public void onEnable() {
@@ -33,6 +37,8 @@ public class BlackFlashPlugin extends JavaPlugin {
         this.gojoAwakeningItemKey = new NamespacedKey(this, "gojo_awakening_item");
         this.lapseBlueItemKey = new NamespacedKey(this, "lapse_blue_item");
         this.reverseRedItemKey = new NamespacedKey(this, "reverse_red_item");
+        this.teleportStrikeItemKey = new NamespacedKey(this, "teleport_strike_item");
+        this.lapseBlueArmsItemKey = new NamespacedKey(this, "lapse_blue_arms_item");
 
         this.gojoAwakeningAbility = new GojoAwakeningAbility(this, gojoAwakeningItemKey, abilityRestrictionManager);
         this.blackFlashAbility = new BlackFlashAbility(this, blackFlashAxeKey, abilityRestrictionManager,
@@ -43,8 +49,12 @@ public class BlackFlashPlugin extends JavaPlugin {
                 gojoAwakeningAbility);
         this.reverseRedAbility = new ReverseRedAbility(this, reverseRedItemKey, abilityRestrictionManager,
                 gojoAwakeningAbility, lapseBlueAbility);
+        this.teleportStrikeAbility = new TeleportStrikeAbility(this, teleportStrikeItemKey, abilityRestrictionManager,
+                gojoAwakeningAbility);
+        this.lapseBlueArmsAbility = new LapseBlueArmsAbility(this, lapseBlueArmsItemKey, abilityRestrictionManager,
+                gojoAwakeningAbility);
         this.gojoAwakeningAbility.setAbilityHooks(blackFlashAbility, reverseCursedTechniqueAbility, lapseBlueAbility,
-                reverseRedAbility);
+                reverseRedAbility, teleportStrikeAbility, lapseBlueArmsAbility);
         this.blackCoffinAbility = new BlackCoffinAbility(this, hadoItemKey, abilityRestrictionManager);
         this.bankaiAbility = new AdvancedBankaiAbility(this, bankaiItemKey, abilityRestrictionManager);
         getServer().getPluginManager().registerEvents(new BlackFlashListener(blackFlashAbility), this);
@@ -54,7 +64,7 @@ public class BlackFlashPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new AdvancedBankaiListener(bankaiAbility), this);
         getServer().getPluginManager().registerEvents(
                 new GojoAwakeningListener(gojoAwakeningAbility, abilityRestrictionManager, lapseBlueAbility,
-                        reverseRedAbility),
+                        reverseRedAbility, teleportStrikeAbility, lapseBlueArmsAbility),
                 this);
         registerCommands();
         getLogger().info("Black Flash and Reverse Cursed Technique abilities loaded.");
@@ -81,6 +91,12 @@ public class BlackFlashPlugin extends JavaPlugin {
         }
         if (reverseRedAbility != null) {
             reverseRedAbility.clearAll();
+        }
+        if (teleportStrikeAbility != null) {
+            teleportStrikeAbility.clearAll();
+        }
+        if (lapseBlueArmsAbility != null) {
+            lapseBlueArmsAbility.clearAll();
         }
         if (abilityRestrictionManager != null) {
             abilityRestrictionManager.clearAll();
@@ -134,7 +150,8 @@ public class BlackFlashPlugin extends JavaPlugin {
         PluginCommand gojoResetCommand = getCommand("gojoreset");
         if (gojoResetCommand != null) {
             gojoResetCommand.setExecutor(new GojoResetCommand(gojoAwakeningAbility, blackFlashAbility,
-                    reverseCursedTechniqueAbility, lapseBlueAbility, reverseRedAbility, abilityRestrictionManager));
+                    reverseCursedTechniqueAbility, lapseBlueAbility, reverseRedAbility, teleportStrikeAbility,
+                    lapseBlueArmsAbility, abilityRestrictionManager));
         } else {
             getLogger().warning("Failed to register /gojoreset command.");
         }

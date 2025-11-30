@@ -17,13 +17,18 @@ public class GojoAwakeningListener implements Listener {
     private final AbilityRestrictionManager restrictionManager;
     private final LapseBlueAbility lapseBlueAbility;
     private final ReverseRedAbility reverseRedAbility;
+    private final TeleportStrikeAbility teleportStrikeAbility;
+    private final LapseBlueArmsAbility lapseBlueArmsAbility;
 
     public GojoAwakeningListener(GojoAwakeningAbility ability, AbilityRestrictionManager restrictionManager,
-            LapseBlueAbility lapseBlueAbility, ReverseRedAbility reverseRedAbility) {
+            LapseBlueAbility lapseBlueAbility, ReverseRedAbility reverseRedAbility,
+            TeleportStrikeAbility teleportStrikeAbility, LapseBlueArmsAbility lapseBlueArmsAbility) {
         this.ability = ability;
         this.restrictionManager = restrictionManager;
         this.lapseBlueAbility = lapseBlueAbility;
         this.reverseRedAbility = reverseRedAbility;
+        this.teleportStrikeAbility = teleportStrikeAbility;
+        this.lapseBlueArmsAbility = lapseBlueArmsAbility;
     }
 
     @EventHandler
@@ -58,6 +63,18 @@ public class GojoAwakeningListener implements Listener {
 
         if (reverseRedAbility != null && reverseRedAbility.isAbilityItem(event.getItem())) {
             reverseRedAbility.tryActivate(player);
+            event.setCancelled(true);
+            return;
+        }
+
+        if (teleportStrikeAbility != null && teleportStrikeAbility.isAbilityItem(event.getItem())) {
+            teleportStrikeAbility.tryActivate(player);
+            event.setCancelled(true);
+            return;
+        }
+
+        if (lapseBlueArmsAbility != null && lapseBlueArmsAbility.isAbilityItem(event.getItem())) {
+            lapseBlueArmsAbility.tryActivate(player);
             event.setCancelled(true);
         }
     }
