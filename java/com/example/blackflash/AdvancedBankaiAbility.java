@@ -786,7 +786,7 @@ public class AdvancedBankaiAbility {
     }
 
     private BukkitTask createBeamTask(Player player) {
-        return new BukkitRunnable() {
+        BukkitRunnable runnable = new BukkitRunnable() {
             int ticks = 0;
 
             @Override
@@ -812,7 +812,8 @@ public class AdvancedBankaiAbility {
                 }
                 world.playSound(base, Sound.BLOCK_BEACON_POWER_SELECT, 0.8f, 1.4f);
             }
-        }.runTaskTimer(plugin, 0L, 2L);
+        };
+        return runnable.runTaskTimer(plugin, 0L, 2L);
     }
 
     private void spawnAura(Location center) {

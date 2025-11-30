@@ -136,7 +136,7 @@ public class BankaiAbility {
     }
 
     private BukkitTask createBeamTask(Player player) {
-        return new BukkitRunnable() {
+        BukkitRunnable runnable = new BukkitRunnable() {
             private int ticks = 0;
 
             @Override
@@ -160,7 +160,8 @@ public class BankaiAbility {
                 world.playSound(loc, Sound.ENTITY_GENERIC_EXPLODE, 0.8f, 1.2f);
                 world.playSound(loc, Sound.ENTITY_WITHER_SPAWN, 0.7f, 0.7f);
             }
-        }.runTaskTimer(plugin, 0L, 1L);
+        };
+        return runnable.runTaskTimer(plugin, 0L, 1L);
     }
 
     private void beginBankai(Player player, BankaiState state) {
