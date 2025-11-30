@@ -1,0 +1,191 @@
+package com.example.blackflash;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.bukkit.ChatColor;
+import org.bukkit.Color;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.Vector;
+
+public class LapseBlueAbility {
+
+    private static final int COOLDOWN_SECONDS = 25;
+    private static final int FOLLOW_DURATION_TICKS = 60; // 3 seconds
+    private static final int ATTRACTION_DURATION_TICKS = 160; // 8 seconds
+    private static final double FOLLOW_DISTANCE = 6.0;
+    private static final double SPHERE_RADIUS = 2.1;
+    private static final double ATTRACTION_RADIUS = 7.0;
+    private static final double PULL_STRENGTH = 0.45;
+
+    private final BlackFlashPlugin plugin;
+    private final NamespacedKey itemKey;
+    private final AbilityRestrictionManager restrictionManager;
+    private final GojoAwakeningAbility awakeningAbility;
+    private final CooldownManager cooldownManager = new CooldownManager();
+    private final Map<UUID, List<BukkitTask>> activeTasks = new HashMap<>();
+
+    public LapseBlueAbility(BlackFlashPlugin plugin, NamespacedKey itemKey,
+            AbilityRestrictionManager restrictionManager, GojoAwakeningAbility awakeningAbility) {
+        this.plugin = plugin;
+        this.itemKey = itemKey;
+        this.restrictionManager = restrictionManager;
+        this.awakeningAbility = awakeningAbility;
+    }
+
+    public ItemStack createItem() {
+        ItemStack stack = new ItemStack(Material.LAPIS_LAZULI);
+        ItemMeta meta = stack.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(ChatColor.AQUA + "Lapse Blue Maximum Output");
+            List<String> lore = new ArrayList<>();
+            lore.add(ChatColor.GRAY + "Create a crushing blue singularity.");
+            lore.add(ChatColor.DARK_AQUA + "Right-click to release Lapse Blue.");
+            meta.setLore(lore);
+            meta.getPersistentDataContainer().set(itemKey, PersistentDataType.INTEGER, 1);
+            stack.setItemMeta(meta);
+        }
+        return stack;
+    }
+
+    public boolean isAbilityItem(ItemStack itemStack) {
+        if (itemStack == null || !itemStack.hasItemMeta()) {
+            return false;
+        }
+        ItemMeta meta = itemStack.getItemMeta();
+        return meta != null && meta.getPersistentDataContainer().has(itemKey, PersistentDataType.INTEGER);
+    }
+
+    public void tryActivate(Player player) {
+        UUID id = player.getUniqueId();
+        if (!awakeningAbility.isAwakening(player)) {
+            player.sendMessage(ChatColor.RED + "Lapse Blue can only be used during Gojo's Awakening.");
+            return;
+        }
+        if (!restrictionManager.canUseAbility(player)) {
+            player.sendMessage(ChatColor.RED + "You cannot use abilities right now.");
+            return;
+        }
+        if (!cooldownManager.isReady(id)) {
+            long remaining = cooldownManager.getRemainingSeconds(id);
+            player.sendMessage(ChatColor.YELLOW + "Lapse Blue is recharging for " + remaining + "s.");
+            return;
+        }
+
+        cooldownManager.setCooldown(id, COOLDOWN_SECONDS);
+        startFollowPhase(player);
+        player.playSound(player.getLocation(), Sound.ENTITY_ILLUSIONER_CAST_SPELL, 1.2f, 1.1f);
+        player.sendMessage(ChatColor.AQUA + "Lapse Blue surges ahead of you!");
+    }
+
+    private void startFollowPhase(Player player) {
+        UUID id = player.getUniqueId();
+        Vector lockedDirection = player.getLocation().getDirection().normalize();
+        BukkitTask followTask = new BukkitRunnable() {
+            int ticks = 0;
+            Location currentCenter = player.getEyeLocation().add(lockedDirection.clone().multiply(FOLLOW_DISTANCE));
+
+            @Override
+            public void run() {
+                if (!isActive(player)) {
+                    cancel();
+                    cleanup(id, this);
+                    return;
+                }
+                currentCenter = player.getEyeLocation().add(player.getLocation().getDirection().normalize()
+                        .multiply(FOLLOW_DISTANCE));
+                spawnSphere(currentCenter);
+                if (++ticks >= FOLLOW_DURATION_TICKS) {
+                    cancel();
+                    cleanup(id, this);
+                    startAttractionPhase(player, currentCenter.clone());
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 2L);
+        trackTask(id, followTask);
+    }
+
+    private void startAttractionPhase(Player player, Location center) {
+        UUID id = player.getUniqueId();
+        BukkitTask attractTask = new BukkitRunnable() {
+            int ticks = 0;
+
+            @Override
+            public void run() {
+                if (!isActive(player)) {
+                    cancel();
+                    cleanup(id, this);
+                    return;
+                }
+                spawnSphere(center);
+                pullEntities(center, player);
+                if (++ticks >= ATTRACTION_DURATION_TICKS) {
+                    cancel();
+                    cleanup(id, this);
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 2L);
+        trackTask(id, attractTask);
+    }
+
+    private void spawnSphere(Location center) {
+        center.getWorld().spawnParticle(Particle.REDSTONE, center, 50, SPHERE_RADIUS, SPHERE_RADIUS, SPHERE_RADIUS, 0.04,
+                new Particle.DustOptions(Color.fromRGB(120, 180, 255), 1.3f));
+        center.getWorld().spawnParticle(Particle.END_ROD, center, 18, 0.6, 0.6, 0.6, 0.0);
+        center.getWorld().spawnParticle(Particle.REVERSE_PORTAL, center, 22, 0.8, 0.8, 0.8, 0.01);
+    }
+
+    private void pullEntities(Location center, Player caster) {
+        for (LivingEntity entity : center.getNearbyLivingEntities(ATTRACTION_RADIUS)) {
+            if (entity.getUniqueId().equals(caster.getUniqueId())) {
+                continue;
+            }
+            Vector toCenter = center.toVector().subtract(entity.getLocation().toVector());
+            Vector push = toCenter.normalize().multiply(PULL_STRENGTH);
+            push.setY(Math.min(0.45, push.getY() + 0.05));
+            entity.setVelocity(entity.getVelocity().multiply(0.4).add(push));
+        }
+    }
+
+    private boolean isActive(Player player) {
+        return player.isOnline() && awakeningAbility.isAwakening(player) && restrictionManager.canUseAbility(player);
+    }
+
+    private void trackTask(UUID id, BukkitTask task) {
+        activeTasks.computeIfAbsent(id, ignored -> new ArrayList<>()).add(task);
+    }
+
+    private void cleanup(UUID id, BukkitTask finishedTask) {
+        List<BukkitTask> tasks = activeTasks.get(id);
+        if (tasks == null) {
+            return;
+        }
+        tasks.remove(finishedTask);
+        if (tasks.isEmpty()) {
+            activeTasks.remove(id);
+        }
+    }
+
+    public void clearAll() {
+        for (List<BukkitTask> tasks : activeTasks.values()) {
+            for (BukkitTask task : tasks) {
+                task.cancel();
+            }
+        }
+        activeTasks.clear();
+    }
+}
