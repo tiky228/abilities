@@ -39,12 +39,27 @@ public class GojoAwakeningAbility {
     private final AbilityRestrictionManager restrictionManager;
     private final Map<UUID, AwakeningState> activeAwakenings = new HashMap<>();
     private final Map<UUID, Set<UUID>> pendingFreezes = new HashMap<>();
+    private final Map<UUID, InventorySnapshot> savedInventories = new HashMap<>();
+
+    private BlackFlashAbility blackFlashAbility;
+    private ReverseCursedTechniqueAbility reverseCursedTechniqueAbility;
+    private LapseBlueAbility lapseBlueAbility;
+    private ReverseRedAbility reverseRedAbility;
 
     public GojoAwakeningAbility(BlackFlashPlugin plugin, NamespacedKey itemKey,
             AbilityRestrictionManager restrictionManager) {
         this.plugin = plugin;
         this.itemKey = itemKey;
         this.restrictionManager = restrictionManager;
+    }
+
+    public void setAbilityHooks(BlackFlashAbility blackFlashAbility,
+            ReverseCursedTechniqueAbility reverseCursedTechniqueAbility, LapseBlueAbility lapseBlueAbility,
+            ReverseRedAbility reverseRedAbility) {
+        this.blackFlashAbility = blackFlashAbility;
+        this.reverseCursedTechniqueAbility = reverseCursedTechniqueAbility;
+        this.lapseBlueAbility = lapseBlueAbility;
+        this.reverseRedAbility = reverseRedAbility;
     }
 
     public ItemStack createItem() {
@@ -186,6 +201,11 @@ public class GojoAwakeningAbility {
             return;
         }
 
+        InventorySnapshot snapshot = captureInventory(caster);
+        savedInventories.put(caster.getUniqueId(), snapshot);
+        clearInventory(caster.getInventory());
+        giveAwakeningItems(caster);
+
         double baseHealth = healthAttribute.getBaseValue();
         healthAttribute.setBaseValue(baseHealth + 10.0);
         caster.setHealth(Math.min(caster.getHealth() + 10.0, healthAttribute.getValue()));
@@ -252,6 +272,10 @@ public class GojoAwakeningAbility {
         }
         player.removePotionEffect(PotionEffectType.NIGHT_VISION);
         player.removePotionEffect(PotionEffectType.SATURATION);
+        restoreInventory(player);
+        if (blackFlashAbility != null) {
+            blackFlashAbility.onAwakeningEnd(player);
+        }
         if (!silent && player.isOnline()) {
             player.sendMessage(ChatColor.GRAY + "Your limitless focus fades.");
         }
@@ -273,6 +297,48 @@ public class GojoAwakeningAbility {
         }
         state.setEndTask(scheduleEndTask(player, state));
         return true;
+    }
+
+    private InventorySnapshot captureInventory(Player player) {
+        org.bukkit.inventory.PlayerInventory inventory = player.getInventory();
+        return new InventorySnapshot(inventory.getContents().clone(), inventory.getArmorContents().clone(),
+                inventory.getExtraContents().clone(), inventory.getItemInOffHand());
+    }
+
+    private void clearInventory(org.bukkit.inventory.PlayerInventory inventory) {
+        inventory.clear();
+        inventory.setArmorContents(new ItemStack[inventory.getArmorContents().length]);
+        inventory.setExtraContents(new ItemStack[inventory.getExtraContents().length]);
+        inventory.setItemInOffHand(null);
+    }
+
+    private void giveAwakeningItems(Player player) {
+        int slot = 0;
+        if (blackFlashAbility != null) {
+            player.getInventory().setItem(slot++, blackFlashAbility.createBlackFlashAxe());
+        }
+        if (reverseCursedTechniqueAbility != null) {
+            player.getInventory().setItem(slot++, reverseCursedTechniqueAbility.createItem());
+        }
+        if (lapseBlueAbility != null) {
+            player.getInventory().setItem(slot++, lapseBlueAbility.createItem());
+        }
+        if (reverseRedAbility != null) {
+            player.getInventory().setItem(slot, reverseRedAbility.createItem());
+        }
+    }
+
+    private void restoreInventory(Player player) {
+        UUID id = player.getUniqueId();
+        InventorySnapshot snapshot = savedInventories.remove(id);
+        if (snapshot == null) {
+            return;
+        }
+        org.bukkit.inventory.PlayerInventory inventory = player.getInventory();
+        inventory.setContents(snapshot.contents.clone());
+        inventory.setArmorContents(snapshot.armor.clone());
+        inventory.setExtraContents(snapshot.extra.clone());
+        inventory.setItemInOffHand(snapshot.offHand);
     }
 
     public void clearState(Player player) {
@@ -308,12 +374,27 @@ public class GojoAwakeningAbility {
                 if (state != null) {
                     state.cancel();
                 }
+                savedInventories.remove(id);
             }
         }
     }
 
     private void sendAwakeningTitle(Player player) {
-        player.sendTitle(ChatColor.AQUA + "Since you're this strong…", ChatColor.WHITE + "I won't hold back.", 10, 40, 10);
+        player.sendTitle(ChatColor.AQUA + "Since you're this strong… I won't hold back.", "", 10, 40, 10);
+    }
+
+    private static class InventorySnapshot {
+        private final ItemStack[] contents;
+        private final ItemStack[] armor;
+        private final ItemStack[] extra;
+        private final ItemStack offHand;
+
+        private InventorySnapshot(ItemStack[] contents, ItemStack[] armor, ItemStack[] extra, ItemStack offHand) {
+            this.contents = contents;
+            this.armor = armor;
+            this.extra = extra;
+            this.offHand = offHand;
+        }
     }
 
     private static class AwakeningState {

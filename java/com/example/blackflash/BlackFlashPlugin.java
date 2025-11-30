@@ -12,12 +12,16 @@ public class BlackFlashPlugin extends JavaPlugin {
     private BlackCoffinAbility blackCoffinAbility;
     private AdvancedBankaiAbility bankaiAbility;
     private GojoAwakeningAbility gojoAwakeningAbility;
+    private LapseBlueAbility lapseBlueAbility;
+    private ReverseRedAbility reverseRedAbility;
     private AbilityRestrictionManager abilityRestrictionManager;
     private NamespacedKey blackFlashAxeKey;
     private NamespacedKey reverseTechniqueItemKey;
     private NamespacedKey hadoItemKey;
     private NamespacedKey bankaiItemKey;
     private NamespacedKey gojoAwakeningItemKey;
+    private NamespacedKey lapseBlueItemKey;
+    private NamespacedKey reverseRedItemKey;
 
     @Override
     public void onEnable() {
@@ -27,12 +31,20 @@ public class BlackFlashPlugin extends JavaPlugin {
         this.hadoItemKey = new NamespacedKey(this, "hado_item");
         this.bankaiItemKey = new NamespacedKey(this, "bankai_item");
         this.gojoAwakeningItemKey = new NamespacedKey(this, "gojo_awakening_item");
+        this.lapseBlueItemKey = new NamespacedKey(this, "lapse_blue_item");
+        this.reverseRedItemKey = new NamespacedKey(this, "reverse_red_item");
 
         this.gojoAwakeningAbility = new GojoAwakeningAbility(this, gojoAwakeningItemKey, abilityRestrictionManager);
         this.blackFlashAbility = new BlackFlashAbility(this, blackFlashAxeKey, abilityRestrictionManager,
                 gojoAwakeningAbility);
         this.reverseCursedTechniqueAbility = new ReverseCursedTechniqueAbility(this, reverseTechniqueItemKey,
                 abilityRestrictionManager);
+        this.lapseBlueAbility = new LapseBlueAbility(this, lapseBlueItemKey, abilityRestrictionManager,
+                gojoAwakeningAbility);
+        this.reverseRedAbility = new ReverseRedAbility(this, reverseRedItemKey, abilityRestrictionManager,
+                gojoAwakeningAbility);
+        this.gojoAwakeningAbility.setAbilityHooks(blackFlashAbility, reverseCursedTechniqueAbility, lapseBlueAbility,
+                reverseRedAbility);
         this.blackCoffinAbility = new BlackCoffinAbility(this, hadoItemKey, abilityRestrictionManager);
         this.bankaiAbility = new AdvancedBankaiAbility(this, bankaiItemKey, abilityRestrictionManager);
         getServer().getPluginManager().registerEvents(new BlackFlashListener(blackFlashAbility), this);
@@ -40,8 +52,10 @@ public class BlackFlashPlugin extends JavaPlugin {
                 .registerEvents(new ReverseCursedTechniqueListener(reverseCursedTechniqueAbility), this);
         getServer().getPluginManager().registerEvents(new BlackCoffinListener(blackCoffinAbility), this);
         getServer().getPluginManager().registerEvents(new AdvancedBankaiListener(bankaiAbility), this);
-        getServer().getPluginManager()
-                .registerEvents(new GojoAwakeningListener(gojoAwakeningAbility, abilityRestrictionManager), this);
+        getServer().getPluginManager().registerEvents(
+                new GojoAwakeningListener(gojoAwakeningAbility, abilityRestrictionManager, lapseBlueAbility,
+                        reverseRedAbility),
+                this);
         registerCommands();
         getLogger().info("Black Flash and Reverse Cursed Technique abilities loaded.");
     }
@@ -61,6 +75,12 @@ public class BlackFlashPlugin extends JavaPlugin {
         }
         if (gojoAwakeningAbility != null) {
             gojoAwakeningAbility.clearAll();
+        }
+        if (lapseBlueAbility != null) {
+            lapseBlueAbility.clearAll();
+        }
+        if (reverseRedAbility != null) {
+            reverseRedAbility.clearAll();
         }
         if (abilityRestrictionManager != null) {
             abilityRestrictionManager.clearAll();
