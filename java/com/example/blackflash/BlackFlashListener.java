@@ -23,6 +23,10 @@ public class BlackFlashListener implements Listener {
             return;
         }
 
+        if (!ability.canUseAbility(event.getPlayer())) {
+            return;
+        }
+
         if (event.getItem() != null) {
             ability.handleActivation(event.getPlayer());
         }
@@ -35,6 +39,11 @@ public class BlackFlashListener implements Listener {
         }
 
         if (!(event.getEntity() instanceof LivingEntity target)) {
+            return;
+        }
+
+        if (!ability.canUseAbility(player)) {
+            event.setCancelled(true);
             return;
         }
 
