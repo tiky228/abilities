@@ -130,6 +130,14 @@ public class BlackFlashPlugin extends JavaPlugin {
         } else {
             getLogger().warning("Failed to register /gojoawakening command.");
         }
+
+        PluginCommand gojoResetCommand = getCommand("gojoreset");
+        if (gojoResetCommand != null) {
+            gojoResetCommand.setExecutor(new GojoResetCommand(gojoAwakeningAbility, blackFlashAbility,
+                    reverseCursedTechniqueAbility, lapseBlueAbility, reverseRedAbility, abilityRestrictionManager));
+        } else {
+            getLogger().warning("Failed to register /gojoreset command.");
+        }
     }
 
     public AbilityRestrictionManager getAbilityRestrictionManager() {

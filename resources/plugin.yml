@@ -21,3 +21,6 @@ commands:
   gojoawakening:
     description: Gives the Gojo Awakening item
     usage: /gojoawakening
+  gojoreset:
+    description: Fully reset Gojo Awakening state for the executing player
+    usage: /gojoreset

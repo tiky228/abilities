@@ -40,6 +40,7 @@ public class GojoAwakeningAbility {
     private final Map<UUID, AwakeningState> activeAwakenings = new HashMap<>();
     private final Map<UUID, Set<UUID>> pendingFreezes = new HashMap<>();
     private final Map<UUID, InventorySnapshot> savedInventories = new HashMap<>();
+    private final Map<UUID, List<BukkitTask>> trackedTasks = new HashMap<>();
 
     private BlackFlashAbility blackFlashAbility;
     private ReverseCursedTechniqueAbility reverseCursedTechniqueAbility;
@@ -129,14 +130,17 @@ public class GojoAwakeningAbility {
         caster.getWorld().playSound(caster.getLocation(), Sound.ENTITY_WITHER_SPAWN, 1.4f, 0.8f);
         caster.getWorld().playSound(caster.getLocation(), Sound.ENTITY_ILLUSIONER_CAST_SPELL, 1.2f, 1.2f);
 
+        UUID id = caster.getUniqueId();
         BukkitTask particleTask = startCutsceneParticles(caster);
-        new BukkitRunnable() {
+        trackTask(id, particleTask);
+        BukkitTask endTask = new BukkitRunnable() {
             @Override
             public void run() {
                 particleTask.cancel();
                 endCutscene(caster);
             }
         }.runTaskLater(plugin, CUTSCENE_TICKS);
+        trackTask(id, endTask);
     }
 
     private BukkitTask startCutsceneParticles(Player caster) {
@@ -180,6 +184,7 @@ public class GojoAwakeningAbility {
 
     private void endCutscene(Player caster) {
         Set<UUID> frozen = pendingFreezes.remove(caster.getUniqueId());
+        clearTrackedTasks(caster.getUniqueId());
         if (frozen != null) {
             for (UUID id : frozen) {
                 Player target = plugin.getServer().getPlayer(id);
@@ -369,8 +374,10 @@ public class GojoAwakeningAbility {
     }
 
     public void clearState(Player player) {
+        UUID id = player.getUniqueId();
+        clearTrackedTasks(id);
         restrictionManager.setFrozenByGojo(player, false);
-        Set<UUID> frozen = pendingFreezes.remove(player.getUniqueId());
+        Set<UUID> frozen = pendingFreezes.remove(id);
         if (frozen != null) {
             for (UUID id : frozen) {
                 Player frozenPlayer = plugin.getServer().getPlayer(id);
@@ -380,6 +387,7 @@ public class GojoAwakeningAbility {
             }
         }
         endAwakening(player, true);
+        restoreInventory(player);
     }
 
     public void clearAll() {
@@ -480,6 +488,20 @@ public class GojoAwakeningAbility {
             if (endTask != null) {
                 endTask.cancel();
             }
+        }
+    }
+
+    private void trackTask(UUID id, BukkitTask task) {
+        trackedTasks.computeIfAbsent(id, ignored -> new ArrayList<>()).add(task);
+    }
+
+    private void clearTrackedTasks(UUID id) {
+        List<BukkitTask> tasks = trackedTasks.remove(id);
+        if (tasks == null) {
+            return;
+        }
+        for (BukkitTask task : tasks) {
+            task.cancel();
         }
     }
 }

@@ -365,6 +365,13 @@ public class LapseBlueAbility {
         sphereStates.clear();
     }
 
+    public void clearState(Player player) {
+        UUID id = player.getUniqueId();
+        cancelTasks(id);
+        sphereStates.remove(id);
+        cooldownManager.clear(id);
+    }
+
     private void cancelTasks(UUID id) {
         List<BukkitTask> tasks = activeTasks.remove(id);
         if (tasks == null) {

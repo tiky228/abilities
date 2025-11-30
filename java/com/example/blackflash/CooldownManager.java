@@ -24,6 +24,10 @@ public class CooldownManager {
         cooldowns.put(id, System.currentTimeMillis() + (seconds * 1000L));
     }
 
+    public void clear(UUID id) {
+        cooldowns.remove(id);
+    }
+
     private long getRemainingMillis(UUID id) {
         Long expires = cooldowns.get(id);
         if (expires == null) {

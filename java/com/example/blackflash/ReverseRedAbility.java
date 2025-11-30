@@ -312,4 +312,15 @@ public class ReverseRedAbility {
         }
         activeTasks.clear();
     }
+
+    public void clearState(Player player) {
+        UUID id = player.getUniqueId();
+        List<BukkitTask> tasks = activeTasks.remove(id);
+        if (tasks != null) {
+            for (BukkitTask task : tasks) {
+                task.cancel();
+            }
+        }
+        cooldownManager.clear(id);
+    }
 }
