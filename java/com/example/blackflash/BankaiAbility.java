@@ -42,7 +42,7 @@ public class BankaiAbility {
 
     private static final int BANKAI_DURATION_SECONDS = 90;
     private static final int GETSUGA_COST_SECONDS = 10;
-    private static final int GETSUGA_COOLDOWN_SECONDS = 15;
+    private static final int GETSUGA_COOLDOWN_SECONDS = 7;
     private static final int GETSUGA_RANGE = 15;
     private static final int GETSUGA_DAMAGE = 15;
 
