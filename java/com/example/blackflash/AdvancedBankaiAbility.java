@@ -644,7 +644,7 @@ public class AdvancedBankaiAbility {
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1.2f, tenshou ? 0.6f : 1.1f);
         spawnReadyParticles(player.getLocation(), tenshou);
 
-        new BukkitRunnable() {
+        BukkitTask getsugaTask = new BukkitRunnable() {
             @Override
             public void run() {
                 if (tenshou) {
@@ -654,6 +654,7 @@ public class AdvancedBankaiAbility {
                 }
             }
         }.runTaskLater(plugin, 6L);
+        data.phaseTasks.add(getsugaTask);
     }
 
     private void fireSlash(Player player, BankaiData data) {
