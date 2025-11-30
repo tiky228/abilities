@@ -30,6 +30,11 @@ public class CoyoteStarrkListener implements Listener {
             event.setCancelled(true);
             return;
         }
+        if (ability.isStormItem(event.getItem())) {
+            ability.tryActivateStorm(player);
+            event.setCancelled(true);
+            return;
+        }
         for (CoyoteStarrkAbility.CeroVariant variant : CoyoteStarrkAbility.CeroVariant.values()) {
             if (ability.isCeroItem(event.getItem(), variant)) {
                 ability.tryActivateCero(player, variant);
