@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -324,10 +325,34 @@ public class AdvancedBankaiAbility {
                     cancel();
                     return;
                 }
+                ThreadLocalRandom random = ThreadLocalRandom.current();
+                Particle.DustOptions deepAura = new Particle.DustOptions(Color.fromRGB(230, 30, 30), 1.8f);
+                Particle.DustOptions ember = new Particle.DustOptions(Color.fromRGB(255, 90, 90), 1.3f);
+                for (int i = 0; i < 24; i++) {
+                    double radius = random.nextDouble() * REATSU_RADIUS;
+                    double angle = random.nextDouble() * Math.PI * 2;
+                    double yOffset = random.nextDouble(0.1, 1.4);
+                    Location swirl = center.clone().add(Math.cos(angle) * radius, yOffset,
+                            Math.sin(angle) * radius);
+                    world.spawnParticle(Particle.REDSTONE, swirl, 4, 0.25, 0.25, 0.25, deepAura);
+                    world.spawnParticle(Particle.REDSTONE, swirl, 3, 0.2, 0.2, 0.2, ember);
+                    world.spawnParticle(Particle.CRIT_MAGIC, swirl, 3, 0.28, 0.28, 0.28, 0.05);
+                    world.spawnParticle(Particle.CRIT, swirl, 4, 0.26, 0.18, 0.26, 0.04);
+                    world.spawnParticle(Particle.SMOKE_LARGE, swirl, 2, 0.3, 0.3, 0.3, 0.01);
+                    world.spawnParticle(Particle.DRAGON_BREATH, swirl, 3, 0.24, 0.24, 0.24, 0.0);
+                    if (i % 6 == 0) {
+                        world.spawnParticle(Particle.EXPLOSION_NORMAL, swirl, 1, 0.15, 0.15, 0.15, 0.0);
+                    }
+                }
                 ticks += 10;
                 if (ticks % 20 == 0) {
                     world.playSound(center, Sound.ENTITY_ENDERMAN_SCREAM, 0.6f, 0.7f);
                     world.playSound(center, Sound.ENTITY_PLAYER_HURT, 0.6f, 1.2f);
+                    world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 0.5f,
+                            (float) (0.65 + random.nextDouble(0.25)));
+                    world.playSound(center, Sound.ENTITY_ZOMBIE_INFECT, 0.6f,
+                            (float) (0.7 + random.nextDouble(0.15)));
+                    world.playSound(center, Sound.ENTITY_WITHER_SPAWN, 0.35f, 1.4f);
                 }
                 for (UUID uuid : affected) {
                     LivingEntity entity = (LivingEntity) Bukkit.getEntity(uuid);
