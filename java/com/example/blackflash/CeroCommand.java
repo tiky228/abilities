@@ -6,14 +6,14 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-public class GiveStarrkCommand implements CommandExecutor {
+public class CeroCommand implements CommandExecutor {
 
-    private final StarrkPetsAbility petsAbility;
     private final CeroOscurasAbility ceroAbility;
+    private final CeroOscurasAbility.CeroVariant variant;
 
-    public GiveStarrkCommand(StarrkPetsAbility petsAbility, CeroOscurasAbility ceroAbility) {
-        this.petsAbility = petsAbility;
+    public CeroCommand(CeroOscurasAbility ceroAbility, CeroOscurasAbility.CeroVariant variant) {
         this.ceroAbility = ceroAbility;
+        this.variant = variant;
     }
 
     @Override
@@ -22,11 +22,8 @@ public class GiveStarrkCommand implements CommandExecutor {
             sender.sendMessage("Only players can use this command.");
             return true;
         }
-        player.getInventory().addItem(petsAbility.createPetsItem());
-        for (CeroOscurasAbility.CeroVariant variant : CeroOscurasAbility.CeroVariant.values()) {
-            player.getInventory().addItem(ceroAbility.createCeroItem(variant));
-        }
-        player.sendMessage(ChatColor.AQUA + "Granted Starrk abilities.");
+        player.getInventory().addItem(ceroAbility.createCeroItem(variant));
+        player.sendMessage(ChatColor.GRAY + "Granted " + variant.getDisplayName() + ChatColor.GRAY + " item.");
         return true;
     }
 }

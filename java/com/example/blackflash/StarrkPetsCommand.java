@@ -6,14 +6,12 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-public class GiveStarrkCommand implements CommandExecutor {
+public class StarrkPetsCommand implements CommandExecutor {
 
     private final StarrkPetsAbility petsAbility;
-    private final CeroOscurasAbility ceroAbility;
 
-    public GiveStarrkCommand(StarrkPetsAbility petsAbility, CeroOscurasAbility ceroAbility) {
+    public StarrkPetsCommand(StarrkPetsAbility petsAbility) {
         this.petsAbility = petsAbility;
-        this.ceroAbility = ceroAbility;
     }
 
     @Override
@@ -23,10 +21,7 @@ public class GiveStarrkCommand implements CommandExecutor {
             return true;
         }
         player.getInventory().addItem(petsAbility.createPetsItem());
-        for (CeroOscurasAbility.CeroVariant variant : CeroOscurasAbility.CeroVariant.values()) {
-            player.getInventory().addItem(ceroAbility.createCeroItem(variant));
-        }
-        player.sendMessage(ChatColor.AQUA + "Granted Starrk abilities.");
+        player.sendMessage(ChatColor.AQUA + "Starrk Pets item granted.");
         return true;
     }
 }
