@@ -42,7 +42,7 @@ public class BlackFlashPlugin extends JavaPlugin {
         this.lapseBlueAbility = new LapseBlueAbility(this, lapseBlueItemKey, abilityRestrictionManager,
                 gojoAwakeningAbility);
         this.reverseRedAbility = new ReverseRedAbility(this, reverseRedItemKey, abilityRestrictionManager,
-                gojoAwakeningAbility);
+                gojoAwakeningAbility, lapseBlueAbility);
         this.gojoAwakeningAbility.setAbilityHooks(blackFlashAbility, reverseCursedTechniqueAbility, lapseBlueAbility,
                 reverseRedAbility);
         this.blackCoffinAbility = new BlackCoffinAbility(this, hadoItemKey, abilityRestrictionManager);
