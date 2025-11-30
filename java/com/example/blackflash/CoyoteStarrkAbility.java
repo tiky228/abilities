@@ -215,7 +215,7 @@ public class CoyoteStarrkAbility {
     }
 
     private void runWolfLogic(Player owner, Wolf wolf) {
-        BukkitTask task = new BukkitRunnable() {
+        BukkitRunnable wolfRoutine = new BukkitRunnable() {
             int life = 0;
 
             @Override
@@ -237,7 +237,8 @@ public class CoyoteStarrkAbility {
                     }
                 }
             }
-        }.runTaskTimer(plugin, 0L, 2L);
+        };
+        BukkitTask task = wolfRoutine.runTaskTimer(plugin, 0L, 2L);
         wolfTasks.put(wolf.getUniqueId(), task);
     }
 
@@ -331,7 +332,7 @@ public class CoyoteStarrkAbility {
         player.sendMessage(ChatColor.GRAY + "Cero Oscuras unleashed!");
 
         activeBeams.add(player.getUniqueId());
-        BukkitTask beamTask = new BukkitRunnable() {
+        BukkitRunnable beamRunnable = new BukkitRunnable() {
             int ticks = 0;
 
             @Override
@@ -356,7 +357,8 @@ public class CoyoteStarrkAbility {
                 }
                 ticks += 2;
             }
-        }.runTaskTimer(plugin, 0L, 2L);
+        };
+        BukkitTask beamTask = beamRunnable.runTaskTimer(plugin, 0L, 2L);
         player.setCooldown(player.getInventory().getItemInMainHand().getType(), 10);
     }
 
@@ -574,7 +576,7 @@ public class CoyoteStarrkAbility {
             }
             int delay = ThreadLocalRandom.current().nextInt(6, 20);
             BukkitTask[] dashHolder = new BukkitTask[1];
-            dashHolder[0] = new BukkitRunnable() {
+            BukkitRunnable dashRunnable = new BukkitRunnable() {
                 int ticks = 0;
                 LivingEntity target = findStormTarget(player, wolf);
 
@@ -614,11 +616,12 @@ public class CoyoteStarrkAbility {
                         cleanupStormTask(ownerId, dashHolder[0]);
                     }
                 }
-            }.runTaskTimer(plugin, delay, 2L);
+            };
+            dashHolder[0] = dashRunnable.runTaskTimer(plugin, delay, 2L);
             tasks.add(dashHolder[0]);
         }
 
-        BukkitTask monitorTask = new BukkitRunnable() {
+        BukkitRunnable monitorRunnable = new BukkitRunnable() {
             @Override
             public void run() {
                 List<UUID> remaining = activeWolves.get(ownerId);
@@ -638,7 +641,8 @@ public class CoyoteStarrkAbility {
                     cancel();
                 }
             }
-        }.runTaskTimer(plugin, STORM_MAX_DURATION_TICKS, 20L);
+        };
+        BukkitTask monitorTask = monitorRunnable.runTaskTimer(plugin, STORM_MAX_DURATION_TICKS, 20L);
         tasks.add(monitorTask);
     }
 
