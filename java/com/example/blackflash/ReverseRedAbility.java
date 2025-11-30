@@ -19,6 +19,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
@@ -29,16 +31,17 @@ public class ReverseRedAbility {
     private static final int CHARGE_TICKS = 20;
     private static final int MAX_TRAVEL_TICKS = 22;
     private static final double STEP_DISTANCE = 4.8;
+    private static final double ENHANCED_STEP_DISTANCE = 3.2;
     private static final double HIT_RADIUS = 1.25;
     private static final double DAMAGE = 14.0;
     private static final double KNOCKBACK = 1.6;
     private static final double HOMING_RANGE = 20.0;
     private static final double HOMING_STEP_DISTANCE = 9.4;
+    private static final double ENHANCED_HOMING_STEP_DISTANCE = 6.2;
     private static final int HOMING_MAX_TICKS = 35;
     private static final double HOMING_DAMAGE = 18.0;
     private static final double HOMING_KNOCKBACK = 2.0;
-    private static final double ENHANCED_PULL_STRENGTH = 1.4;
-    private static final double ENHANCED_PULL_VERTICAL_LIMIT = 0.9;
+    private static final int ENHANCED_SLOWNESS_DURATION_TICKS = 40;
 
     private final BlackFlashPlugin plugin;
     private final NamespacedKey itemKey;
@@ -107,6 +110,7 @@ public class ReverseRedAbility {
     private void beginCharge(Player player, Location origin, Vector direction, boolean enhanced) {
         UUID id = player.getUniqueId();
         BukkitTask[] handle = new BukkitTask[1];
+        double stepDistance = enhanced ? ENHANCED_STEP_DISTANCE : STEP_DISTANCE;
         BukkitRunnable runnable = new BukkitRunnable() {
             int ticks = 0;
 
@@ -149,7 +153,7 @@ public class ReverseRedAbility {
                 if (facing.lengthSquared() > 1.0e-4) {
                     adjustedDirection[0] = facing.normalize();
                 }
-                current.add(adjustedDirection[0].clone().multiply(STEP_DISTANCE));
+                current.add(adjustedDirection[0].clone().multiply(stepDistance));
                 spawnSphere(current, 0.6f);
                 if (hitSolidBlock(current)) {
                     cancel();
@@ -194,6 +198,7 @@ public class ReverseRedAbility {
     private void startHoming(Player player, Location current, LivingEntity target) {
         UUID id = player.getUniqueId();
         BukkitTask[] handle = new BukkitTask[1];
+        double stepDistance = ENHANCED_HOMING_STEP_DISTANCE;
         BukkitRunnable runnable = new BukkitRunnable() {
             int ticks = 0;
 
@@ -212,7 +217,7 @@ public class ReverseRedAbility {
                 Vector targetFacing = target.getLocation().getDirection().normalize();
                 Vector targetPoint = target.getLocation().add(0, 1, 0).toVector()
                         .add(targetFacing.multiply(-1.6));
-                Vector travel = targetPoint.subtract(current.toVector()).normalize().multiply(HOMING_STEP_DISTANCE);
+                Vector travel = targetPoint.subtract(current.toVector()).normalize().multiply(stepDistance);
                 current.add(travel);
                 spawnSphere(current, 0.8f);
                 if (checkEntityHit(player, current, HIT_RADIUS, HOMING_DAMAGE, HOMING_KNOCKBACK, true)) {
@@ -265,22 +270,31 @@ public class ReverseRedAbility {
 
     private void applyImpact(Player caster, LivingEntity target, Location origin, double damage, double knockbackForce,
             boolean enhanced) {
-        if (enhanced) {
-            Vector pull = origin.toVector().subtract(target.getLocation().toVector()).normalize()
-                    .multiply(ENHANCED_PULL_STRENGTH);
-            pull.setY(Math.min(ENHANCED_PULL_VERTICAL_LIMIT, pull.getY() + 0.2));
-            target.setVelocity(target.getVelocity().multiply(0.2).add(pull));
-        }
         target.damage(damage, caster);
-        Vector knockback = target.getLocation().toVector().subtract(origin.toVector()).normalize()
-                .multiply(knockbackForce);
-        knockback.setY(Math.max(0.5, knockback.getY()));
-        target.setVelocity(target.getVelocity().add(knockback));
+        if (enhanced) {
+            applyEnhancedImpact(caster, target);
+        } else {
+            Vector knockback = target.getLocation().toVector().subtract(origin.toVector()).normalize()
+                    .multiply(knockbackForce);
+            knockback.setY(Math.max(0.5, knockback.getY()));
+            target.setVelocity(target.getVelocity().add(knockback));
+        }
         spawnSphere(origin, 0.9f);
         origin.getWorld().playSound(origin, Sound.ENTITY_GENERIC_EXPLODE, 1.2f, 1.0f);
         if (enhanced && lapseBlueAbility != null) {
             lapseBlueAbility.tryTriggerHollowPurple(caster);
         }
+    }
+
+    private void applyEnhancedImpact(Player caster, LivingEntity target) {
+        Vector towardCaster = caster.getLocation().toVector().subtract(target.getLocation().toVector());
+        Vector horizontal = new Vector(towardCaster.getX(), 0, towardCaster.getZ());
+        Vector knockback = horizontal.lengthSquared() > 1.0e-6 ? horizontal.normalize().multiply(3.0)
+                : new Vector(0, 0, 0);
+        knockback.setY(1.0);
+        target.setVelocity(knockback);
+        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, ENHANCED_SLOWNESS_DURATION_TICKS, 0, false, true,
+                true));
     }
 
     private void spawnSphere(Location center, float size) {

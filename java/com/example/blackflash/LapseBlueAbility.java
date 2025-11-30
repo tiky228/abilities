@@ -366,7 +366,7 @@ public class LapseBlueAbility {
         if (world == null) {
             return;
         }
-        int radius = 8;
+        int radius = 32;
         int centerX = center.getBlockX();
         int centerY = center.getBlockY();
         int centerZ = center.getBlockZ();
@@ -379,7 +379,7 @@ public class LapseBlueAbility {
                 if (horizontalDistance > radius) {
                     continue;
                 }
-                int depth = (int) Math.round((radius - horizontalDistance) * 0.75) + 3;
+                int depth = (int) Math.round((radius - horizontalDistance) * 0.85) + 3;
                 int lowestY = Math.max(minY, centerY - depth);
                 for (int y = maxY; y >= lowestY; y--) {
                     Block block = world.getBlockAt(x, y, z);
