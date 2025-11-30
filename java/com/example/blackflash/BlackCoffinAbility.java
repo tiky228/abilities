@@ -39,14 +39,16 @@ public class BlackCoffinAbility {
 
     private final BlackFlashPlugin plugin;
     private final NamespacedKey itemKey;
+    private final AbilityRestrictionManager restrictionManager;
     private final CooldownManager cooldownManager = new CooldownManager();
     private final Set<UUID> frozenPlayers = new HashSet<>();
     private final Map<UUID, Integer> freezeCounts = new HashMap<>();
     private final List<BukkitTask> runningTasks = new ArrayList<>();
 
-    public BlackCoffinAbility(BlackFlashPlugin plugin, NamespacedKey itemKey) {
+    public BlackCoffinAbility(BlackFlashPlugin plugin, NamespacedKey itemKey, AbilityRestrictionManager restrictionManager) {
         this.plugin = plugin;
         this.itemKey = itemKey;
+        this.restrictionManager = restrictionManager;
     }
 
     public ItemStack createItem() {
@@ -60,6 +62,10 @@ public class BlackCoffinAbility {
             item.setItemMeta(meta);
         }
         return item;
+    }
+
+    public boolean canUseAbility(Player player) {
+        return restrictionManager.canUseAbility(player);
     }
 
     public boolean isAbilityItem(ItemStack stack) {
@@ -91,6 +97,10 @@ public class BlackCoffinAbility {
 
     public void tryCast(Player caster) {
         UUID casterId = caster.getUniqueId();
+        if (!restrictionManager.canUseAbility(caster)) {
+            caster.sendMessage(ChatColor.RED + "You cannot use abilities right now.");
+            return;
+        }
         if (!cooldownManager.isReady(casterId)) {
             long remaining = cooldownManager.getRemainingSeconds(casterId);
             caster.sendMessage(ChatColor.YELLOW + "Black Coffin is on cooldown for " + remaining + "s.");

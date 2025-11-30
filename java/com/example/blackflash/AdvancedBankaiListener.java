@@ -1,5 +1,6 @@
 package com.example.blackflash;
 
+import org.bukkit.ChatColor;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
@@ -24,6 +25,11 @@ public class AdvancedBankaiListener implements Listener {
             return;
         }
         if (!bankaiAbility.isBankaiItem(event.getItem())) {
+            return;
+        }
+        if (!bankaiAbility.canUseAbility(event.getPlayer())) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage(ChatColor.RED + "You cannot use abilities right now.");
             return;
         }
         event.setCancelled(true);

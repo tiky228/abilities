@@ -55,11 +55,14 @@ public class AdvancedBankaiAbility {
 
     private final BlackFlashPlugin plugin;
     private final NamespacedKey bankaiItemKey;
+    private final AbilityRestrictionManager restrictionManager;
     private final Map<UUID, BankaiData> states = new HashMap<>();
 
-    public AdvancedBankaiAbility(BlackFlashPlugin plugin, NamespacedKey bankaiItemKey) {
+    public AdvancedBankaiAbility(BlackFlashPlugin plugin, NamespacedKey bankaiItemKey,
+            AbilityRestrictionManager restrictionManager) {
         this.plugin = plugin;
         this.bankaiItemKey = bankaiItemKey;
+        this.restrictionManager = restrictionManager;
     }
 
     public ItemStack createBankaiItem() {
@@ -76,6 +79,10 @@ public class AdvancedBankaiAbility {
             sword.setItemMeta(meta);
         }
         return sword;
+    }
+
+    public boolean canUseAbility(Player player) {
+        return restrictionManager.canUseAbility(player);
     }
 
     public boolean isBankaiItem(ItemStack itemStack) {

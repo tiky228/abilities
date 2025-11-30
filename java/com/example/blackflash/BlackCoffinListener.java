@@ -2,6 +2,7 @@ package com.example.blackflash;
 
 import java.util.UUID;
 
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -48,6 +49,11 @@ public class BlackCoffinListener implements Listener {
 
         if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
             if (ability.isAbilityItem(player.getInventory().getItemInMainHand())) {
+                if (!ability.canUseAbility(player)) {
+                    player.sendMessage(ChatColor.RED + "You cannot use abilities right now.");
+                    event.setCancelled(true);
+                    return;
+                }
                 ability.tryCast(player);
                 event.setCancelled(true);
             }

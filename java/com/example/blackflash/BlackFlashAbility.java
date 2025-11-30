@@ -42,12 +42,14 @@ public class BlackFlashAbility {
     private final BlackFlashPlugin plugin;
     private final CooldownManager cooldownManager;
     private final NamespacedKey axeKey;
+    private final AbilityRestrictionManager restrictionManager;
     private final Map<UUID, Attempt> activeAttempts = new HashMap<>();
 
-    public BlackFlashAbility(BlackFlashPlugin plugin, NamespacedKey axeKey) {
+    public BlackFlashAbility(BlackFlashPlugin plugin, NamespacedKey axeKey, AbilityRestrictionManager restrictionManager) {
         this.plugin = plugin;
         this.axeKey = axeKey;
         this.cooldownManager = new CooldownManager();
+        this.restrictionManager = restrictionManager;
     }
 
     /**
@@ -67,6 +69,10 @@ public class BlackFlashAbility {
             axe.setItemMeta(meta);
         }
         return axe;
+    }
+
+    public boolean canUseAbility(Player player) {
+        return restrictionManager.canUseAbility(player);
     }
 
     /**
@@ -94,6 +100,11 @@ public class BlackFlashAbility {
             return;
         }
 
+        if (!restrictionManager.canUseAbility(player)) {
+            player.sendMessage(ChatColor.RED + "You cannot use abilities right now.");
+            return;
+        }
+
         if (!cooldownManager.isReady(id)) {
             long remaining = cooldownManager.getRemainingSeconds(id);
             player.sendMessage(ChatColor.YELLOW + "Black Flash is recharging. " + remaining + "s remaining.");
@@ -115,6 +126,12 @@ public class BlackFlashAbility {
         UUID id = player.getUniqueId();
         Attempt attempt = activeAttempts.remove(id);
         if (attempt == null) {
+            return;
+        }
+
+        if (!restrictionManager.canUseAbility(player)) {
+            removeStrength(player);
+            cooldownManager.setCooldown(id, MISS_COOLDOWN_SECONDS);
             return;
         }
 

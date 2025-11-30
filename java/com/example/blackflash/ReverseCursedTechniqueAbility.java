@@ -30,13 +30,16 @@ public class ReverseCursedTechniqueAbility {
 
     private final BlackFlashPlugin plugin;
     private final NamespacedKey itemKey;
+    private final AbilityRestrictionManager restrictionManager;
     private final CooldownManager cooldownManager = new CooldownManager();
     private final Map<UUID, ChannelState> activeChannels = new HashMap<>();
     private final Map<UUID, Long> penaltyUntil = new HashMap<>();
 
-    public ReverseCursedTechniqueAbility(BlackFlashPlugin plugin, NamespacedKey itemKey) {
+    public ReverseCursedTechniqueAbility(BlackFlashPlugin plugin, NamespacedKey itemKey,
+            AbilityRestrictionManager restrictionManager) {
         this.plugin = plugin;
         this.itemKey = itemKey;
+        this.restrictionManager = restrictionManager;
     }
 
     public ItemStack createItem() {
@@ -52,6 +55,10 @@ public class ReverseCursedTechniqueAbility {
         return stack;
     }
 
+    public boolean canUseAbility(Player player) {
+        return restrictionManager.canUseAbility(player);
+    }
+
     public boolean isAbilityItem(ItemStack itemStack) {
         if (itemStack == null || !itemStack.hasItemMeta()) {
             return false;
@@ -63,6 +70,11 @@ public class ReverseCursedTechniqueAbility {
     public void tryActivate(Player player) {
         UUID id = player.getUniqueId();
         if (!player.isOnline()) {
+            return;
+        }
+
+        if (!restrictionManager.canUseAbility(player)) {
+            player.sendMessage(ChatColor.RED + "You cannot use abilities right now.");
             return;
         }
 
@@ -104,7 +116,7 @@ public class ReverseCursedTechniqueAbility {
     }
 
     private void applyRegeneration(Player player) {
-        player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, Integer.MAX_VALUE, 3, false, false, true));
+        player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, Integer.MAX_VALUE, 4, false, false, true));
     }
 
     private BukkitTask startParticleTask(Player player, UUID id) {

@@ -28,6 +28,10 @@ public class ReverseCursedTechniqueListener implements Listener {
             return;
         }
 
+        if (!ability.canUseAbility(event.getPlayer())) {
+            return;
+        }
+
         ItemStack item = event.getPlayer().getInventory().getItemInMainHand();
         if (ability.isAbilityItem(item)) {
             ability.tryActivate(event.getPlayer());
@@ -57,6 +61,11 @@ public class ReverseCursedTechniqueListener implements Listener {
     @EventHandler
     public void onAttack(EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof Player player)) {
+            return;
+        }
+
+        if (!ability.canUseAbility(player)) {
+            event.setCancelled(true);
             return;
         }
 
