@@ -25,9 +25,9 @@ import org.bukkit.util.Vector;
 public class LapseBlueAbility {
 
     private static final int COOLDOWN_SECONDS = 25;
-    private static final int FOLLOW_DURATION_TICKS = 60; // 3 seconds
-    private static final int ATTRACTION_DURATION_TICKS = 160; // 8 seconds
-    private static final double FOLLOW_DISTANCE = 9.0;
+    private static final int FOLLOW_DURATION_TICKS = 20; // 1 second
+    private static final int ATTRACTION_DURATION_TICKS = 100; // 5 seconds
+    private static final double FOLLOW_DISTANCE = 8.5;
     private static final double SPHERE_RADIUS = 2.25;
     private static final double ATTRACTION_RADIUS = 7.5;
     private static final double PULL_STRENGTH = 0.45;
@@ -148,8 +148,8 @@ public class LapseBlueAbility {
     }
 
     private void spawnSphere(Location center) {
-        int verticalSteps = 12;
-        int horizontalSteps = 20;
+        int verticalSteps = 8;
+        int horizontalSteps = 14;
         for (int i = 0; i <= verticalSteps; i++) {
             double phi = Math.PI * i / verticalSteps;
             double y = SPHERE_RADIUS * Math.cos(phi);
@@ -158,11 +158,10 @@ public class LapseBlueAbility {
                 double theta = 2 * Math.PI * j / horizontalSteps;
                 Vector offset = new Vector(Math.cos(theta) * ringRadius, y, Math.sin(theta) * ringRadius);
                 Location point = center.clone().add(offset);
-                center.getWorld().spawnParticle(Particle.REDSTONE, point, 2, 0.04, 0.04, 0.04, 0.0,
-                        new Particle.DustOptions(Color.fromRGB(90, 170, 255), 1.1f));
-                center.getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, point, 1, 0.01, 0.01, 0.01, 0.0);
-                if (j % 5 == 0) {
-                    center.getWorld().spawnParticle(Particle.END_ROD, point, 1, 0.0, 0.0, 0.0, 0.0);
+                center.getWorld().spawnParticle(Particle.REDSTONE, point, 1, 0.03, 0.03, 0.03, 0.0,
+                        new Particle.DustOptions(Color.fromRGB(90, 170, 255), 1.05f));
+                if (j % 4 == 0) {
+                    center.getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, point, 1, 0.01, 0.01, 0.01, 0.0);
                 }
             }
         }
