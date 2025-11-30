@@ -303,7 +303,7 @@ public class AdvancedBankaiAbility {
             }
             affected.add(entity.getUniqueId());
             entity.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 80, 6, false, false, true));
-            entity.addPotionEffect(new PotionEffect(PotionEffectType.JUMP, 80, 250, false, false, true));
+            entity.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 80, 250, false, false, true));
             entity.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 80, 1, false, false, true));
             if (entity instanceof Player targetPlayer) {
                 data.reatsuLockedPlayers.add(targetPlayer.getUniqueId());
@@ -354,7 +354,7 @@ public class AdvancedBankaiAbility {
                 continue;
             }
             entity.removePotionEffect(PotionEffectType.SLOW);
-            entity.removePotionEffect(PotionEffectType.JUMP);
+            entity.removePotionEffect(PotionEffectType.JUMP_BOOST);
             entity.removePotionEffect(PotionEffectType.NAUSEA);
             Vector knockback = entity.getLocation().toVector().subtract(center.toVector()).normalize().multiply(1.2);
             knockback.setY(0.55);
@@ -824,7 +824,7 @@ public class AdvancedBankaiAbility {
         player.removePotionEffect(PotionEffectType.NAUSEA);
         player.removePotionEffect(PotionEffectType.REGENERATION);
         player.removePotionEffect(PotionEffectType.INCREASE_DAMAGE);
-        player.removePotionEffect(PotionEffectType.JUMP);
+        player.removePotionEffect(PotionEffectType.JUMP_BOOST);
 
         AttributeInstance maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
         if (maxHealth != null && data.originalMaxHealth > 0) {
@@ -838,7 +838,7 @@ public class AdvancedBankaiAbility {
             Player target = Bukkit.getPlayer(locked);
             if (target != null) {
                 target.removePotionEffect(PotionEffectType.SLOW);
-                target.removePotionEffect(PotionEffectType.JUMP);
+                target.removePotionEffect(PotionEffectType.JUMP_BOOST);
                 target.removePotionEffect(PotionEffectType.NAUSEA);
                 target.removePotionEffect(PotionEffectType.BLINDNESS);
             }
