@@ -111,7 +111,7 @@ public class ReverseRedAbility {
         UUID id = player.getUniqueId();
         BukkitTask[] handle = new BukkitTask[1];
         double stepDistance = enhanced ? ENHANCED_STEP_DISTANCE : STEP_DISTANCE;
-        BukkitTask task = new BukkitRunnable() {
+        handle[0] = new BukkitRunnable() {
             int ticks = 0;
 
             @Override
@@ -129,8 +129,7 @@ public class ReverseRedAbility {
                 }
             }
         }.runTaskTimer(plugin, 0L, 1L);
-        handle[0] = task;
-        trackTask(id, task);
+        trackTask(id, handle[0]);
         player.playSound(player.getLocation(), Sound.ITEM_TRIDENT_THUNDER, 0.9f, 1.1f);
     }
 
@@ -139,7 +138,7 @@ public class ReverseRedAbility {
         BukkitTask[] handle = new BukkitTask[1];
         Vector[] adjustedDirection = { direction.normalize() };
         double stepDistance = enhanced ? ENHANCED_STEP_DISTANCE : STEP_DISTANCE;
-        BukkitTask task = new BukkitRunnable() {
+        handle[0] = new BukkitRunnable() {
             int ticks = 0;
             boolean hitTarget = false;
 
@@ -179,8 +178,7 @@ public class ReverseRedAbility {
                 }
             }
         }.runTaskTimer(plugin, 1L, 1L);
-        handle[0] = task;
-        trackTask(id, task);
+        trackTask(id, handle[0]);
     }
 
     private void tryStartHoming(Player player, Location current) {
@@ -200,7 +198,7 @@ public class ReverseRedAbility {
         UUID id = player.getUniqueId();
         BukkitTask[] handle = new BukkitTask[1];
         double stepDistance = ENHANCED_HOMING_STEP_DISTANCE;
-        BukkitTask task = new BukkitRunnable() {
+        handle[0] = new BukkitRunnable() {
             int ticks = 0;
 
             @Override
@@ -232,8 +230,7 @@ public class ReverseRedAbility {
                 }
             }
         }.runTaskTimer(plugin, 1L, 1L);
-        handle[0] = task;
-        trackTask(id, task);
+        trackTask(id, handle[0]);
     }
 
     private LivingEntity findNearestTarget(Player caster, Location origin) {
