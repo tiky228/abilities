@@ -33,6 +33,7 @@ public class BlackFlashPlugin extends JavaPlugin {
     private NamespacedKey ceroGreenItemKey;
     private NamespacedKey ceroCyanItemKey;
     private NamespacedKey starrkWolfKey;
+    private NamespacedKey starrkStormItemKey;
 
     @Override
     public void onEnable() {
@@ -52,6 +53,7 @@ public class BlackFlashPlugin extends JavaPlugin {
         this.ceroGreenItemKey = new NamespacedKey(this, "cero_green_item");
         this.ceroCyanItemKey = new NamespacedKey(this, "cero_cyan_item");
         this.starrkWolfKey = new NamespacedKey(this, "starrk_wolf");
+        this.starrkStormItemKey = new NamespacedKey(this, "starrk_storm_item");
 
         this.gojoAwakeningAbility = new GojoAwakeningAbility(this, gojoAwakeningItemKey, abilityRestrictionManager);
         this.blackFlashAbility = new BlackFlashAbility(this, blackFlashAxeKey, abilityRestrictionManager,
@@ -67,7 +69,8 @@ public class BlackFlashPlugin extends JavaPlugin {
         this.lapseBlueArmsAbility = new LapseBlueArmsAbility(this, lapseBlueArmsItemKey, abilityRestrictionManager,
                 gojoAwakeningAbility);
         this.coyoteStarrkAbility = new CoyoteStarrkAbility(this, abilityRestrictionManager, starrkPetsItemKey,
-                ceroRedItemKey, ceroBlueItemKey, ceroGreenItemKey, ceroCyanItemKey, starrkWolfKey);
+                ceroRedItemKey, ceroBlueItemKey, ceroGreenItemKey, ceroCyanItemKey, starrkWolfKey,
+                starrkStormItemKey);
         this.gojoAwakeningAbility.setAbilityHooks(blackFlashAbility, reverseCursedTechniqueAbility, lapseBlueAbility,
                 reverseRedAbility, teleportStrikeAbility, lapseBlueArmsAbility);
         this.blackCoffinAbility = new BlackCoffinAbility(this, hadoItemKey, abilityRestrictionManager);
@@ -180,6 +183,38 @@ public class BlackFlashPlugin extends JavaPlugin {
             starrkCommand.setExecutor(new GiveStarrkCommand(coyoteStarrkAbility));
         } else {
             getLogger().warning("Failed to register /givestarrk command.");
+        }
+
+        PluginCommand starrkPetsCommand = getCommand("starrkpets");
+        if (starrkPetsCommand != null) {
+            starrkPetsCommand.setExecutor(new StarrkPetsCommand(coyoteStarrkAbility));
+        } else {
+            getLogger().warning("Failed to register /starrkpets command.");
+        }
+
+        PluginCommand ceroRedCommand = getCommand("ceror");
+        if (ceroRedCommand != null) {
+            ceroRedCommand.setExecutor(new CeroCommand(coyoteStarrkAbility, CoyoteStarrkAbility.CeroVariant.RED));
+        }
+
+        PluginCommand ceroBlueCommand = getCommand("cerob");
+        if (ceroBlueCommand != null) {
+            ceroBlueCommand.setExecutor(new CeroCommand(coyoteStarrkAbility, CoyoteStarrkAbility.CeroVariant.BLUE));
+        }
+
+        PluginCommand ceroGreenCommand = getCommand("cerog");
+        if (ceroGreenCommand != null) {
+            ceroGreenCommand.setExecutor(new CeroCommand(coyoteStarrkAbility, CoyoteStarrkAbility.CeroVariant.GREEN));
+        }
+
+        PluginCommand ceroCyanCommand = getCommand("ceroc");
+        if (ceroCyanCommand != null) {
+            ceroCyanCommand.setExecutor(new CeroCommand(coyoteStarrkAbility, CoyoteStarrkAbility.CeroVariant.CYAN));
+        }
+
+        PluginCommand stormCommand = getCommand("starrkstorm");
+        if (stormCommand != null) {
+            stormCommand.setExecutor(new LosLobosStormCommand(coyoteStarrkAbility));
         }
     }
 

@@ -6,11 +6,11 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-public class GiveStarrkCommand implements CommandExecutor {
+public class StarrkPetsCommand implements CommandExecutor {
 
     private final CoyoteStarrkAbility starrkAbility;
 
-    public GiveStarrkCommand(CoyoteStarrkAbility starrkAbility) {
+    public StarrkPetsCommand(CoyoteStarrkAbility starrkAbility) {
         this.starrkAbility = starrkAbility;
     }
 
@@ -20,12 +20,12 @@ public class GiveStarrkCommand implements CommandExecutor {
             sender.sendMessage("Only players can use this command.");
             return true;
         }
-        player.getInventory().addItem(starrkAbility.createPetsItem());
-        for (CoyoteStarrkAbility.CeroVariant variant : CoyoteStarrkAbility.CeroVariant.values()) {
-            player.getInventory().addItem(starrkAbility.createCeroItem(variant));
+        if (!player.hasPermission("starrk.pets")) {
+            player.sendMessage(ChatColor.RED + "You lack permission to use this command.");
+            return true;
         }
-        player.getInventory().addItem(starrkAbility.createStormItem());
-        player.sendMessage(ChatColor.AQUA + "Granted Starrk abilities.");
+        player.getInventory().addItem(starrkAbility.createPetsItem());
+        player.sendMessage(ChatColor.AQUA + "Granted Starrk Pets item.");
         return true;
     }
 }

@@ -33,10 +33,10 @@ import org.bukkit.util.Vector;
 public class CoyoteStarrkAbility {
 
     public enum CeroVariant {
-        RED(ChatColor.DARK_RED + "Cero Oscuras", Color.fromRGB(160, 30, 30), Color.fromRGB(20, 20, 20)),
-        BLUE(ChatColor.AQUA + "Cero Oscuras", Color.fromRGB(30, 120, 220), Color.fromRGB(240, 240, 255)),
-        GREEN(ChatColor.GREEN + "Cero Oscuras", Color.fromRGB(40, 200, 90), Color.fromRGB(230, 255, 230)),
-        CYAN(ChatColor.DARK_AQUA + "Cero Oscuras", Color.fromRGB(20, 200, 220), Color.fromRGB(230, 255, 255));
+        RED(ChatColor.DARK_RED + "Cero Oscuras (Red)", Color.fromRGB(160, 30, 30), Color.fromRGB(20, 20, 20)),
+        BLUE(ChatColor.AQUA + "Cero Oscuras (Blue)", Color.fromRGB(30, 120, 220), Color.fromRGB(240, 240, 255)),
+        GREEN(ChatColor.GREEN + "Cero Oscuras (Green)", Color.fromRGB(40, 200, 90), Color.fromRGB(230, 255, 230)),
+        CYAN(ChatColor.DARK_AQUA + "Cero Oscuras (Cyan)", Color.fromRGB(20, 200, 220), Color.fromRGB(230, 255, 255));
 
         private final String displayName;
         private final Color primary;
@@ -62,6 +62,7 @@ public class CoyoteStarrkAbility {
     }
 
     private static final int PET_COOLDOWN_SECONDS = 20;
+    private static final int STORM_COOLDOWN_SECONDS = 28;
     private static final int CERO_COOLDOWN_SECONDS = 12;
     private static final int PET_MIN_COUNT = 2;
     private static final int PET_MAX_COUNT = 4;
@@ -69,6 +70,10 @@ public class CoyoteStarrkAbility {
     private static final double PET_TARGET_RANGE = 18.0;
     private static final double PET_EXPLOSION_RADIUS = 3.5;
     private static final double PET_EXPLOSION_DAMAGE = 9.0;
+    private static final int STORM_MAX_DURATION_TICKS = 160;
+    private static final double STORM_DASH_SPEED = 0.7;
+    private static final double STORM_EXPLOSION_RADIUS = 4.5;
+    private static final double STORM_EXPLOSION_DAMAGE = 13.0;
 
     private static final double CERO_RANGE = 15.0;
     private static final double CERO_DOT = 0.86; // ~30 degrees cone
@@ -82,14 +87,18 @@ public class CoyoteStarrkAbility {
     private final NamespacedKey petsKey;
     private final Map<CeroVariant, NamespacedKey> ceroKeys = new EnumMap<>(CeroVariant.class);
     private final NamespacedKey wolfKey;
+    private final NamespacedKey stormKey;
     private final CooldownManager petCooldown = new CooldownManager();
+    private final CooldownManager stormCooldown = new CooldownManager();
     private final CooldownManager ceroCooldown = new CooldownManager();
     private final Map<UUID, List<UUID>> activeWolves = new HashMap<>();
+    private final Map<UUID, BukkitTask> wolfTasks = new HashMap<>();
+    private final Map<UUID, List<BukkitTask>> stormTasks = new HashMap<>();
     private final Set<UUID> activeBeams = new HashSet<>();
 
     public CoyoteStarrkAbility(BlackFlashPlugin plugin, AbilityRestrictionManager restrictionManager, NamespacedKey petsKey,
             NamespacedKey ceroRedKey, NamespacedKey ceroBlueKey, NamespacedKey ceroGreenKey, NamespacedKey ceroCyanKey,
-            NamespacedKey wolfKey) {
+            NamespacedKey wolfKey, NamespacedKey stormKey) {
         this.plugin = plugin;
         this.restrictionManager = restrictionManager;
         this.petsKey = petsKey;
@@ -98,6 +107,7 @@ public class CoyoteStarrkAbility {
         this.ceroKeys.put(CeroVariant.GREEN, ceroGreenKey);
         this.ceroKeys.put(CeroVariant.CYAN, ceroCyanKey);
         this.wolfKey = wolfKey;
+        this.stormKey = stormKey;
     }
 
     public ItemStack createPetsItem() {
@@ -126,12 +136,29 @@ public class CoyoteStarrkAbility {
         return stack;
     }
 
+    public ItemStack createStormItem() {
+        ItemStack stack = new ItemStack(Material.PRISMARINE_CRYSTALS);
+        ItemMeta meta = stack.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(ChatColor.AQUA + "Los Lobos Storm");
+            meta.setLore(java.util.Arrays.asList(ChatColor.GRAY + "Command your wolves to spiral into a storm.",
+                    ChatColor.BLUE + "Right-click while wolves are active."));
+            meta.getPersistentDataContainer().set(stormKey, PersistentDataType.INTEGER, 1);
+            stack.setItemMeta(meta);
+        }
+        return stack;
+    }
+
     public boolean isPetsItem(ItemStack itemStack) {
         return hasKey(itemStack, petsKey);
     }
 
     public boolean isCeroItem(ItemStack itemStack, CeroVariant variant) {
         return hasKey(itemStack, ceroKeys.get(variant));
+    }
+
+    public boolean isStormItem(ItemStack itemStack) {
+        return hasKey(itemStack, stormKey);
     }
 
     private boolean hasKey(ItemStack stack, NamespacedKey key) {
@@ -211,6 +238,7 @@ public class CoyoteStarrkAbility {
                 }
             }
         }.runTaskTimer(plugin, 0L, 2L);
+        wolfTasks.put(wolf.getUniqueId(), task);
     }
 
     private LivingEntity findWolfTarget(Player owner, Wolf wolf) {
@@ -414,7 +442,18 @@ public class CoyoteStarrkAbility {
             }
         }
         activeWolves.clear();
+        for (BukkitTask task : wolfTasks.values()) {
+            task.cancel();
+        }
+        wolfTasks.clear();
+        for (List<BukkitTask> tasks : stormTasks.values()) {
+            for (BukkitTask task : tasks) {
+                task.cancel();
+            }
+        }
+        stormTasks.clear();
         petCooldown.clearAll();
+        stormCooldown.clearAll();
         ceroCooldown.clearAll();
     }
 
@@ -427,9 +466,20 @@ public class CoyoteStarrkAbility {
                 if (wolf != null) {
                     wolf.remove();
                 }
+                BukkitTask wolfTask = wolfTasks.remove(wolfId);
+                if (wolfTask != null) {
+                    wolfTask.cancel();
+                }
+            }
+        }
+        List<BukkitTask> tasks = stormTasks.remove(id);
+        if (tasks != null) {
+            for (BukkitTask task : tasks) {
+                task.cancel();
             }
         }
         petCooldown.clear(id);
+        stormCooldown.clear(id);
         ceroCooldown.clear(id);
     }
 
@@ -441,6 +491,10 @@ public class CoyoteStarrkAbility {
         wolves.remove(wolfId);
         if (wolves.isEmpty()) {
             activeWolves.remove(ownerId);
+        }
+        BukkitTask task = wolfTasks.remove(wolfId);
+        if (task != null) {
+            task.cancel();
         }
     }
 
@@ -472,5 +526,194 @@ public class CoyoteStarrkAbility {
         }
         String id = container.get(wolfKey, PersistentDataType.STRING);
         return id != null && id.equals(player.getUniqueId().toString());
+    }
+
+    public void tryActivateStorm(Player player) {
+        UUID id = player.getUniqueId();
+        if (!restrictionManager.canUseAbility(player)) {
+            player.sendMessage(ChatColor.RED + "You cannot use abilities right now.");
+            return;
+        }
+        if (!stormCooldown.isReady(id)) {
+            player.sendMessage(
+                    ChatColor.YELLOW + "Los Lobos Storm cooling down for " + stormCooldown.getRemainingSeconds(id)
+                            + "s.");
+            return;
+        }
+        List<UUID> wolves = activeWolves.get(id);
+        if (wolves == null || wolves.isEmpty()) {
+            player.sendMessage(ChatColor.GRAY + "You have no wolves to command.");
+            return;
+        }
+        List<Wolf> active = new ArrayList<>();
+        for (UUID wolfId : new ArrayList<>(wolves)) {
+            if (!(Bukkit.getEntity(wolfId) instanceof Wolf wolf) || wolf.isDead() || !wolf.isValid()) {
+                removeTrackedWolf(id, wolfId);
+                continue;
+            }
+            active.add(wolf);
+        }
+        if (active.isEmpty()) {
+            player.sendMessage(ChatColor.GRAY + "Your wolves are already gone.");
+            return;
+        }
+        stormCooldown.setCooldown(id, STORM_COOLDOWN_SECONDS);
+        triggerStorm(player, active);
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_WITHER_SHOOT, 1.0f, 1.35f);
+        player.sendMessage(ChatColor.AQUA + "Los Lobos Storm unleashed!");
+    }
+
+    private void triggerStorm(Player player, List<Wolf> wolves) {
+        UUID ownerId = player.getUniqueId();
+        List<BukkitTask> tasks = new ArrayList<>();
+        stormTasks.put(ownerId, tasks);
+        for (Wolf wolf : wolves) {
+            BukkitTask existing = wolfTasks.remove(wolf.getUniqueId());
+            if (existing != null) {
+                existing.cancel();
+            }
+            int delay = ThreadLocalRandom.current().nextInt(6, 20);
+            BukkitTask[] dashHolder = new BukkitTask[1];
+            BukkitTask dashTask = new BukkitRunnable() {
+                int ticks = 0;
+                LivingEntity target = findStormTarget(player, wolf);
+
+                @Override
+                public void run() {
+                    if (wolf.isDead() || !wolf.isValid()) {
+                        removeTrackedWolf(ownerId, wolf.getUniqueId());
+                        cancel();
+                        cleanupStormTask(ownerId, this);
+                        return;
+                    }
+                    if (ticks == 0 && target != null) {
+                        wolf.setTarget(target);
+                    }
+                    Location wolfLoc = wolf.getLocation();
+                    spawnStormTrail(wolfLoc);
+                    if (target != null && !target.isDead()) {
+                        Vector direction = target.getLocation().toVector().subtract(wolfLoc.toVector()).normalize();
+                        direction.setY(0.12);
+                        wolf.setVelocity(direction.multiply(STORM_DASH_SPEED));
+                        if (wolfLoc.distanceSquared(target.getLocation()) < 2.25) {
+                            stormExplode(player, wolf, target.getLocation());
+                            cancel();
+                            cleanupStormTask(ownerId, dashHolder[0]);
+                            return;
+                        }
+                    } else if (ticks > 50) {
+                        stormExplode(player, wolf, wolfLoc);
+                        cancel();
+                        cleanupStormTask(ownerId, dashHolder[0]);
+                        return;
+                    }
+                    ticks += 2;
+                    if (ticks >= STORM_MAX_DURATION_TICKS) {
+                        stormExplode(player, wolf, wolfLoc);
+                        cancel();
+                        cleanupStormTask(ownerId, dashHolder[0]);
+                    }
+                }
+            }.runTaskTimer(plugin, delay, 2L);
+            dashHolder[0] = dashTask;
+            tasks.add(dashTask);
+        }
+
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                List<UUID> remaining = activeWolves.get(ownerId);
+                if (remaining == null || remaining.isEmpty()) {
+                    cancel();
+                    stormTasks.remove(ownerId);
+                    return;
+                }
+                if (stormTasks.get(ownerId) == null || stormTasks.get(ownerId).isEmpty()) {
+                    for (UUID wolfId : remaining) {
+                        Wolf wolf = (Wolf) Bukkit.getEntity(wolfId);
+                        if (wolf != null) {
+                            wolf.remove();
+                        }
+                    }
+                    activeWolves.remove(ownerId);
+                    cancel();
+                }
+            }
+        }.runTaskTimer(plugin, STORM_MAX_DURATION_TICKS, 20L);
+    }
+
+    private LivingEntity findStormTarget(Player owner, Wolf wolf) {
+        World world = wolf.getWorld();
+        if (world == null) {
+            return null;
+        }
+        LivingEntity closest = null;
+        double closestDistance = PET_TARGET_RANGE * PET_TARGET_RANGE;
+        for (LivingEntity entity : world.getLivingEntities()) {
+            if (entity.equals(owner) || entity.equals(wolf)) {
+                continue;
+            }
+            if (entity.getPersistentDataContainer().has(wolfKey, PersistentDataType.STRING)) {
+                continue;
+            }
+            double distance = entity.getLocation().distanceSquared(wolf.getLocation());
+            if (distance > closestDistance) {
+                continue;
+            }
+            closest = entity;
+            closestDistance = distance;
+        }
+        return closest;
+    }
+
+    private void spawnStormTrail(Location location) {
+        World world = location.getWorld();
+        if (world == null) {
+            return;
+        }
+        Particle.DustOptions dust = new Particle.DustOptions(Color.fromRGB(120, 230, 255), 1.1f);
+        world.spawnParticle(Particle.REDSTONE, location, 10, 0.35, 0.0, 0.35, dust);
+        world.spawnParticle(Particle.FIREWORKS_SPARK, location.clone().add(0, 0.1, 0), 6, 0.2, 0.0, 0.2, 0.02);
+    }
+
+    private void stormExplode(Player owner, Wolf wolf, Location center) {
+        World world = center.getWorld();
+        if (world == null) {
+            return;
+        }
+        wolf.remove();
+        removeTrackedWolf(owner.getUniqueId(), wolf.getUniqueId());
+        world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 0.9f);
+        world.playSound(center, Sound.ENTITY_ILLUSIONER_CAST_SPELL, 1.1f, 0.7f);
+        Particle.DustOptions dust = new Particle.DustOptions(Color.fromRGB(70, 200, 255), 1.7f);
+        world.spawnParticle(Particle.EXPLOSION_LARGE, center, 6, 0.6, 0.4, 0.6, 0.02);
+        world.spawnParticle(Particle.REDSTONE, center, 140, 1.2, 0.8, 1.2, dust);
+        world.spawnParticle(Particle.CLOUD, center, 45, 1.0, 0.6, 1.0, 0.05);
+        world.spawnParticle(Particle.END_ROD, center, 30, 0.7, 0.5, 0.7, 0.03);
+
+        double radiusSq = STORM_EXPLOSION_RADIUS * STORM_EXPLOSION_RADIUS;
+        for (LivingEntity entity : world.getLivingEntities()) {
+            if (entity.equals(owner)) {
+                continue;
+            }
+            if (entity.getLocation().distanceSquared(center) > radiusSq) {
+                continue;
+            }
+            if (entity.getPersistentDataContainer().has(wolfKey, PersistentDataType.STRING)) {
+                continue;
+            }
+            entity.damage(STORM_EXPLOSION_DAMAGE, owner);
+        }
+    }
+
+    private void cleanupStormTask(UUID ownerId, BukkitTask task) {
+        List<BukkitTask> tasks = stormTasks.get(ownerId);
+        if (tasks == null) {
+            return;
+        }
+        tasks.removeIf(existing -> existing == task);
+        if (tasks.isEmpty()) {
+            stormTasks.remove(ownerId);
+        }
     }
 }
